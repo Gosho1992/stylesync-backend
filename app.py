@@ -40,22 +40,56 @@ def home():
 def upload_image():
     if "file" not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
-    
+
     file = request.files["file"]
     if file.filename == "":
         return jsonify({"error": "No selected file"}), 400
 
-    # Save the uploaded file securely
+    # Get additional form data
+    occasion = request.form.get("occasion", "Any")
+    season = request.form.get("season", "Any")
+
+    # Save the uploaded file
     filename = secure_filename(file.filename)
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     file.save(filepath)
-
-    print(f"File received: {filename}")  # Debugging log
 
     # Convert image to Base64
     base64_image = encode_image(filepath)
     if not base64_image:
         return jsonify({"error": "Failed to process image"}), 500
+
+    # Send to OpenAI
+    try:
+        prompt = (
+            f"Analyze the clothing item in the image and suggest a matching outfit for a "
+            f"{occasion.lower()} occasion in {season.lower()} season."
+        )
+
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a fashion expert. Give stylish and practical fashion suggestions."},
+                {"role": "user", "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                ]}
+            ],
+            max_tokens=300
+        )
+
+        fashion_advice = response.choices[0].message.content
+
+        return jsonify({
+            "message": "Image uploaded successfully",
+            "filename": filename,
+            "fashion_suggestion": fashion_advice
+        })
+
+    except Exception as e:
+        print(f"Error calling OpenAI API: {str(e)}")
+        return jsonify({"error": "Failed to get response from OpenAI"}), 500
+
 
     # Send Image to OpenAI for fashion analysis
     try:
