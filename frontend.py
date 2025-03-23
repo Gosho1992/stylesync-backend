@@ -5,18 +5,33 @@ import io
 
 st.markdown("""
     <style>
+        /* Main app background */
         [data-testid="stAppViewContainer"] {
             background-color: #f4f9ff;
         }
+
+        /* Sidebar background */
         [data-testid="stSidebar"] {
-            background-color: #e8f0fe;
+            background-color: #e6f0ff;
         }
-        .stButton>button {
+
+        /* Style buttons */
+        .stButton > button {
             background-color: #0066cc;
             color: white;
+            border-radius: 5px;
+            padding: 0.5em 1em;
+        }
+
+        /* Optional rounded white container for image/suggestion */
+        .stMarkdown, .stImage {
+            background-color: white;
+            border-radius: 10px;
+            padding: 10px;
         }
     </style>
 """, unsafe_allow_html=True)
+
 
 
 # ---------- Sidebar ----------
