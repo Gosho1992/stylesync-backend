@@ -5,32 +5,32 @@ import io
 
 st.markdown("""
     <style>
-        /* Main app background */
-        [data-testid="stAppViewContainer"] {
-            background-color: #f4f9ff;
+        .stApp {
+            background-color: #f0f8ff;
+            padding: 2rem;
         }
 
-        /* Sidebar background */
-        [data-testid="stSidebar"] {
-            background-color: #e6f0ff;
+        .css-18ni7ap.e8zbici2 {  /* Main title */
+            color: #003366;
+            text-align: center;
         }
 
-        /* Style buttons */
-        .stButton > button {
+        .stButton>button {
             background-color: #0066cc;
             color: white;
-            border-radius: 5px;
-            padding: 0.5em 1em;
+            padding: 0.5rem 1.5rem;
+            border-radius: 8px;
         }
 
-        /* Optional rounded white container for image/suggestion */
         .stMarkdown, .stImage {
-            background-color: white;
+            background-color: #ffffff;
+            padding: 1rem;
             border-radius: 10px;
-            padding: 10px;
+            box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.05);
         }
     </style>
 """, unsafe_allow_html=True)
+
 
 
 
