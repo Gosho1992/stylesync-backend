@@ -3,16 +3,13 @@ import requests
 from PIL import Image
 import io
 
-# Custom CSS for background color and layout
 st.markdown("""
     <style>
-        body {
+        [data-testid="stAppViewContainer"] {
             background-color: #f4f9ff;
         }
-        .main {
-            background-color: white;
-            padding: 20px;
-            border-radius: 10px;
+        [data-testid="stSidebar"] {
+            background-color: #e8f0fe;
         }
         .stButton>button {
             background-color: #0066cc;
@@ -20,6 +17,7 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
+
 
 # ---------- Sidebar ----------
 st.sidebar.image("https://i.imgur.com/y0ywLko.jpeg", width=100) # Replace with your logo URL if you have one
