@@ -84,8 +84,18 @@ if uploaded_file is not None:
 
             if response.status_code == 200:
                 result = response.json()
+                suggestion = result["fashion_suggestion"]
+
                 st.success("✅ AI Suggestion:")
-                st.markdown(result["fashion_suggestion"])
+                st.markdown(suggestion)
+
+                # ✅ Download button
+                st.download_button(
+                    label="📥 Download Suggestion",
+                    data=suggestion,
+                    file_name="style_suggestion.txt",
+                    mime="text/plain"
+                )
             else:
                 st.error(f"❌ Error {response.status_code}: {response.text}")
 
