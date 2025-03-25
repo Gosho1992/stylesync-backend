@@ -3,32 +3,41 @@ import requests
 from PIL import Image
 import io
 
-# ---------- Custom CSS ----------
-st.markdown("""
-    <style>
-        .stApp {
-            background-color: #f0f8ff;
-            padding: 2rem;
-        }
+# ---------- Theme Toggle ----------
+theme = st.sidebar.radio("🌓 Theme", ["Light", "Dark"])
 
-        .css-18ni7ap.e8zbici2 {  /* Main title */
+# Set dynamic colors based on theme
+bg_color = "#f0f8ff" if theme == "Light" else "#1e1e1e"
+text_color = "#000000" if theme == "Light" else "#ffffff"
+card_color = "#ffffff" if theme == "Light" else "#2c2c2c"
+
+# ---------- Custom CSS ----------
+st.markdown(f"""
+    <style>
+        .stApp {{
+            background-color: {bg_color};
+            color: {text_color};
+            padding: 2rem;
+        }}
+
+        .css-18ni7ap.e8zbici2 {{
             color: #003366;
             text-align: center;
-        }
+        }}
 
-        .stButton>button {
+        .stButton>button {{
             background-color: #0066cc;
             color: white;
             padding: 0.5rem 1.5rem;
             border-radius: 8px;
-        }
+        }}
 
-        .stMarkdown, .stImage {
-            background-color: #ffffff;
+        .stMarkdown, .stImage {{
+            background-color: {card_color};
             padding: 1rem;
             border-radius: 10px;
             box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.05);
-        }
+        }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -41,6 +50,15 @@ Upload your clothing item and get matching outfit suggestions powered by GPT-4.
 """)
 st.sidebar.markdown("---")
 st.sidebar.caption("Created by gosho1992 • [GitHub](https://github.com/Gosho1992)")
+
+# How it Works - Expander
+with st.sidebar.expander("ℹ️ How It Works"):
+    st.markdown("""
+    1. **Upload** an image of your clothing item (shirt, dress, etc.).
+    2. Select the **Occasion** and **Season**.
+    3. Our AI (powered by GPT-4) will generate a **matching outfit suggestion**.
+    4. Download your personalized suggestion if you'd like!
+    """)
 
 # ---------- Main UI ----------
 st.markdown("<h1 style='text-align: center;'>👕 AI Fashion Outfit Suggestions</h1>", unsafe_allow_html=True)
@@ -91,7 +109,7 @@ if uploaded_file is not None:
 
                 # ✅ Download button
                 st.download_button(
-                    label="📥 Download Suggestion",
+                    label="💾 Download Suggestion",
                     data=suggestion,
                     file_name="style_suggestion.txt",
                     mime="text/plain"
