@@ -1,7 +1,15 @@
+import openai
 import streamlit as st
 import requests
 from PIL import Image
 import io
+
+# Set OpenAI API key
+openai.api_key = st.secrets["OPENAI_API_KEY"]
+
+# ---------- Session State for Style Memory ----------
+if "wardrobe" not in st.session_state:
+    st.session_state.wardrobe = []
 
 # ---------- Custom CSS ----------
 st.markdown("""
@@ -42,12 +50,14 @@ Upload your clothing item and get matching outfit suggestions powered by GPT-4.
 st.sidebar.markdown("---")
 st.sidebar.caption("Created by gosho1992 • [GitHub](https://github.com/Gosho1992)")
 
+# ---------- How It Works ----------
 with st.sidebar.expander("ℹ️ How It Works"):
     st.markdown("""
     1. **Upload** an image of your clothing item (shirt, dress, etc.).
     2. Select the **Occasion** and **Season**.
-    3. Our AI (powered by GPT-4) will generate a **matching outfit suggestion**.
-    4. Download your personalized suggestion if you'd like!
+    3. Toggle **Style Memory** ON to store the item temporarily.
+    4. Our AI (powered by GPT-4) will generate a **matching outfit suggestion**.
+    5. Download your personalized suggestion if you'd like!
     """)
 
 # ---------- Main UI ----------
@@ -57,6 +67,9 @@ st.markdown("<p style='text-align: center;'>Upload an image, and AI will suggest
 # ---------- Filters ----------
 occasion = st.selectbox("👗 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work"])
 season = st.selectbox("☀️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn"])
+
+# ---------- Style Memory Toggle ----------
+style_memory = st.toggle("🧠 Enable Style Memory", value=False)
 
 # ---------- Image Upload ----------
 uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
@@ -78,6 +91,9 @@ if uploaded_file is not None:
     files = {
         'file': ('resized.jpg', img_bytes, 'image/jpeg')
     }
+
+    if style_memory:
+        st.session_state.wardrobe.append(image)
 
     with st.spinner("Analyzing outfit... Please wait..."):
         try:
@@ -151,3 +167,10 @@ with st.form("travel_form"):
                     st.error(f"❌ Error {response.status_code}: {response.text}")
             except Exception as e:
                 st.error(f"❌ Exception: {e}")
+
+# ---------- View Style Memory ----------
+if style_memory and st.session_state.wardrobe:
+    st.markdown("---")
+    st.markdown("<h3>🧠 Style Memory (Your Uploaded Wardrobe)</h3>", unsafe_allow_html=True)
+    for idx, img in enumerate(st.session_state.wardrobe):
+        st.image(img, caption=f"Saved Look #{idx+1}", use_container_width=True)
