@@ -3,8 +3,14 @@ import streamlit as st
 import requests
 from PIL import Image
 import io
+import time
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
+
+# ---------- Welcome Page ----------
+st.set_page_config(page_title="StyleSync", layout="wide")
+with st.spinner("✨ Loading StyleSync AI..."):
+    time.sleep(5)
 
 # ---------- Custom CSS ----------
 st.markdown("""
@@ -13,19 +19,16 @@ st.markdown("""
             background-color: #f0f8ff;
             padding: 2rem;
         }
-
         .css-18ni7ap.e8zbici2 {
             color: #003366;
             text-align: center;
         }
-
         .stButton>button {
             background-color: #0066cc;
             color: white;
             padding: 0.5rem 1.5rem;
             border-radius: 8px;
         }
-
         .stMarkdown, .stImage {
             background-color: #ffffff;
             padding: 1rem;
@@ -48,87 +51,127 @@ st.sidebar.caption("Created by gosho1992 • [GitHub](https://github.com/Gosho19
 with st.sidebar.expander("ℹ️ How It Works"):
     st.markdown("""
     1. **Upload** an image of your clothing item (shirt, dress, etc.).
-    2. Select the **Occasion** and **Season**.
-    3. Our AI (powered by GPT-4) will generate a **matching outfit suggestion**.
+    2. Select **Occasion**, **Season**, and **Age Group**.
+    3. Our AI will generate a **matching outfit suggestion**.
     4. Download your personalized suggestion if you'd like!
     """)
 
 with st.sidebar.expander("🧠 What is Style Memory?"):
     st.markdown("""
-    Style Memory stores the clothing items you upload during this session, so the AI can:
-    - Remember your wardrobe.
-    - Suggest matching outfits based on your style history.
+    Style Memory keeps track of outfits you've uploaded in the session. 
+    It helps recommend new combinations based on what you've already added to your wardrobe.
     """)
 
-# ---------- Main UI ----------
-st.markdown("<h1 style='text-align: center;'>👕 AI Fashion Outfit Suggestions</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Upload an image, and AI will suggest a matching outfit in seconds!</p>", unsafe_allow_html=True)
+# ---------- Tabs ----------
+tab1, tab2 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Fashion Assistant"])
 
-# ---------- Filters ----------
-occasion = st.selectbox("👗 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work"])
-season = st.selectbox("☀️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn"])
+# ---------- Outfit Suggestion Tab ----------
+with tab1:
+    st.markdown("<h1 style='text-align: center;'>👕 AI Fashion Outfit Suggestions</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'>Upload an image, and AI will suggest a matching outfit in seconds!</p>", unsafe_allow_html=True)
 
-# ---------- Style Memory Toggle ----------
-use_memory = st.toggle("🧠 Enable Style Memory")
+    occasion = st.selectbox("👗 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work"])
+    season = st.selectbox("☀️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn"])
+    age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"])
+    style_memory_enabled = st.toggle("🧠 Enable Style Memory", value=False)
 
-# ---------- Image Upload ----------
-uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+    uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
 
-if uploaded_file is not None:
-    image = Image.open(uploaded_file).convert("RGB")
-    image = image.resize((500, 500))
-    st.image(image, caption="📸 Uploaded Image", use_container_width=True)
+    if uploaded_file is not None:
+        image = Image.open(uploaded_file).convert("RGB")
+        image = image.resize((500, 500))
+        st.image(image, caption="📸 Uploaded Image", use_container_width=True)
 
-    img_bytes = io.BytesIO()
-    image.save(img_bytes, format="JPEG", quality=70)
-    img_bytes.seek(0)
-    img_b64 = img_bytes.getvalue()
+        img_bytes = io.BytesIO()
+        image.save(img_bytes, format="JPEG", quality=70)
+        img_bytes.seek(0)
 
-    if use_memory:
-        if "style_memory" not in st.session_state:
-            st.session_state.style_memory = []
-        if img_b64 not in st.session_state.style_memory:
-            st.session_state.style_memory.append(img_b64)
+        data = {
+            "occasion": occasion,
+            "season": season,
+            "age": age
+        }
 
-    data = {
-        "occasion": occasion,
-        "season": season
-    }
+        files = {
+            'file': ('resized.jpg', img_bytes, 'image/jpeg')
+        }
 
-    files = {
-        'file': ('resized.jpg', io.BytesIO(img_b64), 'image/jpeg')
-    }
+        with st.spinner("Analyzing outfit... Please wait..."):
+            try:
+                response = requests.post(
+                    "https://stylesync-backend-2kz6.onrender.com/upload",
+                    files=files,
+                    data=data
+                )
 
-    with st.spinner("Analyzing outfit... Please wait..."):
-        try:
-            response = requests.post(
-                "https://stylesync-backend-2kz6.onrender.com/upload",
-                files=files,
-                data=data
+                if response.status_code == 200:
+                    result = response.json()
+                    suggestion = result["fashion_suggestion"]
+                    st.success("✅ AI Suggestion:")
+                    st.markdown(suggestion)
+
+                    st.download_button(
+                        label="📥 Download Suggestion",
+                        data=suggestion,
+                        file_name="style_suggestion.txt",
+                        mime="text/plain"
+                    )
+                else:
+                    st.error(f"❌ Error {response.status_code}: {response.text}")
+
+            except Exception as e:
+                st.error(f"❌ Exception occurred: {e}")
+
+        if style_memory_enabled:
+            if "style_memory" not in st.session_state:
+                st.session_state.style_memory = []
+            st.session_state.style_memory.append(image)
+
+            st.markdown("<h3>🧠 Style Memory (Your Uploaded Wardrobe)</h3>", unsafe_allow_html=True)
+            for img in st.session_state.style_memory:
+                st.image(img, width=200)
+
+# ---------- Travel Fashion Assistant Tab ----------
+with tab2:
+    st.markdown("<h2>✈️ Travel Fashion Assistant</h2>", unsafe_allow_html=True)
+    with st.form("travel_form"):
+        st.markdown("Get outfit and packing suggestions for your next trip!")
+        destination = st.text_input("🌍 Destination", placeholder="e.g. Istanbul")
+        travel_season = st.selectbox("🗓️ Season", ["Spring", "Summer", "Autumn", "Winter"])
+        trip_type = st.selectbox("💼 Trip Type", ["Casual", "Business", "Wedding", "Adventure"])
+        age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"])
+        submitted = st.form_submit_button("Get Travel Suggestions")
+
+        if submitted and destination:
+            travel_prompt = (
+                f"I'm going on a {trip_type.lower()} trip to {destination} in {travel_season}. "
+                f"I am in my {age}. Please suggest appropriate outfits and a packing list."
             )
 
-            if response.status_code == 200:
-                result = response.json()
-                suggestion = result["fashion_suggestion"]
+            with st.spinner("🧳 Planning your stylish trip..."):
+                try:
+                    response = requests.post(
+                        "https://api.openai.com/v1/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {st.secrets['OPENAI_API_KEY']}",
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "model": "gpt-4",
+                            "messages": [
+                                {"role": "system", "content": "You are a travel fashion stylist. Give weather-appropriate outfit and packing suggestions."},
+                                {"role": "user", "content": travel_prompt}
+                            ],
+                            "max_tokens": 400
+                        }
+                    )
 
-                st.success("✅ AI Suggestion:")
-                st.markdown(suggestion)
+                    if response.status_code == 200:
+                        travel_suggestion = response.json()["choices"][0]["message"]["content"]
+                        st.success("✅ Travel Style Suggestion:")
+                        st.markdown(travel_suggestion)
+                    else:
+                        st.error(f"❌ Error {response.status_code}: {response.text}")
 
-                st.download_button(
-                    label="📅 Download Suggestion",
-                    data=suggestion,
-                    file_name="style_suggestion.txt",
-                    mime="text/plain"
-                )
-            else:
-                st.error(f"❌ Error {response.status_code}: {response.text}")
-
-        except Exception as e:
-            st.error(f"❌ Exception occurred: {e}")
-
-# ---------- Display Style Memory ----------
-if use_memory and st.session_state.get("style_memory"):
-    st.markdown("---")
-    st.markdown("<h3>🧠 Style Memory (Your Uploaded Wardrobe)</h3>", unsafe_allow_html=True)
-    for img_bytes in st.session_state.style_memory:
-        st.image(Image.open(io.BytesIO(img_bytes)), use_container_width=True)
+                except Exception as e:
+                    st.error(f"❌ Exception: {e}")
