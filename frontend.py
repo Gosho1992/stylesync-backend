@@ -59,6 +59,19 @@ with st.sidebar.expander("ℹ️ How It Works"):
     4. Our AI (powered by GPT-4) will generate a **matching outfit suggestion**.
     5. Download your personalized suggestion if you'd like!
     """)
+# Style Memory - Expander
+with st.sidebar.expander("🧠 What is Style Memory?"):
+    st.markdown("""
+    Style Memory lets you build your own mini-closet! 👗👔
+
+    Here's how it works:
+    1. **Upload** a clothing item and get outfit suggestions.
+    2. Click **"💾 Save to Style Memory"** to store the item temporarily.
+    3. Upload more items and build your wardrobe.
+    4. Click **"🧠 Suggest from My Style Memory"** to get a full outfit based on your saved items!
+
+    Style Memory is **session-based**, meaning it resets when you refresh the page.
+    """)
 
 # ---------- Main UI ----------
 st.markdown("<h1 style='text-align: center;'>👕 AI Fashion Outfit Suggestions</h1>", unsafe_allow_html=True)
