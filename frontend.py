@@ -7,10 +7,28 @@ import time
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# ---------- Welcome Page ----------
-st.set_page_config(page_title="StyleSync", layout="wide")
-with st.spinner("✨ Loading StyleSync AI..."):
+
+# ---------- Custom Welcome Page (Only show once) ----------
+if "show_welcome" not in st.session_state:
+    st.session_state.show_welcome = True
+
+if st.session_state.show_welcome:
+    st.set_page_config(page_title="StyleSync", layout="wide")
+    st.markdown(
+        """
+        <div style='background: linear-gradient(to right, #a18cd1, #fbc2eb);
+                    height:100vh; display:flex; flex-direction:column;
+                    justify-content:center; align-items:center;
+                    color: white; text-align:center;'>
+            <h1 style='font-size: 4rem; margin-bottom: 0;'>Welcome to StyleSync</h1>
+            <p style='font-size: 1.5rem;'>Your AI-powered clothing assistant</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
     time.sleep(5)
+    st.session_state.show_welcome = False
+    st.rerun()
 
 # ---------- Custom CSS ----------
 st.markdown("""
