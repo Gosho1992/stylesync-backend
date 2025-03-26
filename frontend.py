@@ -3,10 +3,6 @@ import requests
 from PIL import Image
 import io
 
-# ---------- Session State for Wardrobe ----------
-if "wardrobe" not in st.session_state:
-    st.session_state.wardrobe = []
-
 # ---------- Custom CSS ----------
 st.markdown("""
     <style>
@@ -14,16 +10,19 @@ st.markdown("""
             background-color: #f0f8ff;
             padding: 2rem;
         }
+
         .css-18ni7ap.e8zbici2 {
             color: #003366;
             text-align: center;
         }
+
         .stButton>button {
             background-color: #0066cc;
             color: white;
             padding: 0.5rem 1.5rem;
             border-radius: 8px;
         }
+
         .stMarkdown, .stImage {
             background-color: #ffffff;
             padding: 1rem;
@@ -43,26 +42,29 @@ Upload your clothing item and get matching outfit suggestions powered by GPT-4.
 st.sidebar.markdown("---")
 st.sidebar.caption("Created by gosho1992 • [GitHub](https://github.com/Gosho1992)")
 
-# ---------- How It Works ----------
+# How it Works
 with st.sidebar.expander("ℹ️ How It Works"):
     st.markdown("""
-    1. Upload an image of your clothing item.
+    1. **Upload** an image of your clothing item.
     2. Select the **Occasion** and **Season**.
-    3. AI generates a matching outfit.
-    4. Style Memory keeps track of all uploaded items.
+    3. AI generates a matching outfit suggestion.
+    4. View and download the recommendation!
     """)
+
+# 🧠 Style Memory Guide
 with st.sidebar.expander("🧠 What is Style Memory?"):
     st.markdown("""
-    Style Memory lets you build your own mini-closet! 👗👔
-
-    Here's how it works:
-    1. **Upload** a clothing item and get outfit suggestions.
-    2. Click **"💾 Save to Style Memory"** to store the item temporarily.
-    3. Upload more items and build your wardrobe.
-    4. Click **"🧠 Suggest from My Style Memory"** to get a full outfit based on your saved items!
-
-    Style Memory is **session-based**, meaning it resets when you refresh the page.
+    Style Memory temporarily stores all your uploaded items in this session so you can:
+    - See what items you’ve already uploaded
+    - Avoid duplicates
+    - Get inspired by your collection!
+    
+    *(This resets when you refresh or restart the session.)*
     """)
+
+# ---------- Style Memory (session state) ----------
+if "wardrobe" not in st.session_state:
+    st.session_state.wardrobe = []
 
 # ---------- Main UI ----------
 st.markdown("<h1 style='text-align: center;'>👕 AI Fashion Outfit Suggestions</h1>", unsafe_allow_html=True)
@@ -80,6 +82,10 @@ if uploaded_file is not None:
     image = image.resize((500, 500))
     st.image(image, caption="📸 Uploaded Image", use_container_width=True)
 
+    # Add to session wardrobe
+    st.session_state.wardrobe.append(uploaded_file)
+
+    # Convert image to bytes
     img_bytes = io.BytesIO()
     image.save(img_bytes, format="JPEG", quality=70)
     img_bytes.seek(0)
@@ -108,33 +114,22 @@ if uploaded_file is not None:
                 st.success("✅ AI Suggestion:")
                 st.markdown(suggestion)
 
-                # Download option
                 st.download_button(
                     label="📥 Download Suggestion",
                     data=suggestion,
                     file_name="style_suggestion.txt",
                     mime="text/plain"
                 )
-
-                # Save to style memory
-                st.session_state.wardrobe.append({
-                    "image": image,
-                    "occasion": occasion,
-                    "season": season,
-                    "suggestion": suggestion
-                })
-
             else:
                 st.error(f"❌ Error {response.status_code}: {response.text}")
-
         except Exception as e:
             st.error(f"❌ Exception occurred: {e}")
 
-# ---------- Style Memory ----------
-if st.session_state.wardrobe:
-    st.markdown("---")
-    st.subheader("🧠 Style Memory (Your Uploaded Outfits)")
-    for i, item in enumerate(st.session_state.wardrobe):
-        with st.expander(f"🧥 Item {i+1} — {item['occasion']} | {item['season']}"):
-            st.image(item["image"], use_column_width=True)
-            st.markdown(item["suggestion"])
+# ---------- Style Memory Preview ----------
+with st.sidebar.expander("👕 Your Style Memory"):
+    if st.session_state.wardrobe:
+        st.markdown("Here are your uploaded items:")
+        for i, item in enumerate(st.session_state.wardrobe):
+            st.image(item, width=100, caption=f"Item {i+1}")
+    else:
+        st.write("No items in memory yet.")
