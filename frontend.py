@@ -39,6 +39,12 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# ---------- Meta Tags (for preview and SEO) ----------
+st.markdown("""
+    <meta name="title" content="StyleSync – AI Fashion Assistant">
+    <meta name="description" content="Upload your clothing image and get personalized outfit suggestions using AI.">
+""", unsafe_allow_html=True)
+
 # ---------- Sidebar ----------
 st.sidebar.image("https://i.imgur.com/y0ywLko.jpeg", width=100)
 st.sidebar.title("👗 StyleSync AI")
@@ -63,154 +69,6 @@ with st.sidebar.expander("🧠 What is Style Memory?"):
     It helps recommend new combinations based on what you've already added.
     """)
 
-# ---------- Tabs ----------
-tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Fashion Assistant", "🧵 Fashion Trends"])
-
-# ---------- Outfit Suggestion Tab ----------
-with tab1:
-    st.markdown("<h1 style='text-align: center;'>👕 AI Fashion Outfit Suggestions</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Upload an image or take a photo, and AI will suggest a matching outfit!</p>", unsafe_allow_html=True)
-
-    occasion = st.selectbox("👗 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work"])
-    season = st.selectbox("☀️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn"])
-    age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"])
-    style_memory_enabled = st.toggle("🧠 Enable Style Memory", value=False)
-
-    uploaded_file = st.file_uploader("Choose an image or take a photo...", type=["jpg", "jpeg", "png"])
-    st.markdown("_Tip: On mobile, tap 'Choose file' to upload or take a photo._")
-
-    if uploaded_file is not None:
-        if uploaded_file.type.startswith("image/"):
-            try:
-                image = Image.open(uploaded_file).convert("RGB")
-            except Exception:
-                st.error("⚠️ Could not read the image. Try uploading from gallery instead.")
-                st.stop()
-        else:
-            st.error("⚠️ Unsupported file type. Please upload JPG or PNG.")
-            st.stop()
-
-        image = image.resize((500, 500))
-        st.image(image, caption="📸 Uploaded Image", use_container_width=True)
-
-        img_bytes = io.BytesIO()
-        image.save(img_bytes, format="JPEG", quality=70)
-        img_bytes.seek(0)
-
-        data = { "occasion": occasion, "season": season, "age": age }
-        files = { 'file': ('resized.jpg', img_bytes, 'image/jpeg') }
-
-        with st.spinner("Analyzing outfit... Please wait..."):
-            try:
-                response = requests.post(
-                    "https://stylesync-backend-2kz6.onrender.com/upload",
-                    files=files,
-                    data=data
-                )
-                if response.status_code == 200:
-                    result = response.json()
-                    suggestion = result["fashion_suggestion"]
-                    st.success("✅ AI Suggestion:")
-
-                    # 🔧 Apply better formatting to avoid faded text
-                    st.markdown(f"""
-                    <div style='color:#222; font-size: 1.1rem; line-height: 1.6;'>
-                    {suggestion}
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                    st.download_button("📥 Download Suggestion", suggestion, file_name="style_suggestion.txt", mime="text/plain")
-
-                else:
-                    st.error(f"❌ Error {response.status_code}: {response.text}")
-
-            except Exception as e:
-                st.error(f"❌ Exception: {e}")
-
-        if style_memory_enabled:
-            if "style_memory" not in st.session_state:
-                st.session_state.style_memory = []
-            st.session_state.style_memory.append(image)
-
-            st.markdown("<h3>🧠 Style Memory (Your Uploaded Wardrobe)</h3>", unsafe_allow_html=True)
-            for img in st.session_state.style_memory:
-                st.image(img, width=200)
-
-    if st.button("🔄 Refresh App"):
-        st.experimental_rerun()
-
-# ---------- Travel Fashion Assistant Tab ----------
-with tab2:
-    st.markdown("<h2>✈️ Travel Fashion Assistant</h2>", unsafe_allow_html=True)
-    with st.form("travel_form"):
-        st.markdown("Get outfit and packing suggestions for your next trip!")
-        destination = st.text_input("🌍 Destination", placeholder="e.g. Istanbul")
-        travel_season = st.selectbox("🗓️ Season", ["Spring", "Summer", "Autumn", "Winter"])
-        trip_type = st.selectbox("💼 Trip Type", ["Casual", "Business", "Wedding", "Adventure"])
-        age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"])
-        submitted = st.form_submit_button("Get Travel Suggestions")
-
-        if submitted and destination:
-            travel_prompt = (
-                f"I'm going on a {trip_type.lower()} trip to {destination} in {travel_season}. "
-                f"I'm in my {age}. Suggest outfits and a packing list."
-            )
-
-            with st.spinner("🧳 Planning your stylish trip..."):
-                try:
-                    response = requests.post(
-                        "https://api.openai.com/v1/chat/completions",
-                        headers={
-                            "Authorization": f"Bearer {st.secrets['OPENAI_API_KEY']}",
-                            "Content-Type": "application/json"
-                        },
-                        json={
-                            "model": "gpt-4",
-                            "messages": [
-                                {"role": "system", "content": "You are a travel fashion stylist."},
-                                {"role": "user", "content": travel_prompt}
-                            ],
-                            "max_tokens": 400
-                        }
-                    )
-                    if response.status_code == 200:
-                        travel_suggestion = response.json()["choices"][0]["message"]["content"]
-                        st.success("✅ Travel Style Suggestion:")
-                        st.markdown(travel_suggestion)
-                    else:
-                        st.error(f"❌ Error {response.status_code}: {response.text}")
-
-                except Exception as e:
-                    st.error(f"❌ Exception: {e}")
-
-# ---------- Fashion Trends Tab ----------
-with tab3:
-    st.markdown("<h2>🧵 Fashion Trends</h2>", unsafe_allow_html=True)
-    region = st.selectbox("🌍 Select Region", ["Global", "Pakistan", "India", "USA", "Europe", "Middle East"])
-    if st.button("✨ Show Trends"):
-        with st.spinner("Fetching fashion trends..."):
-            try:
-                trend_prompt = f"What are the current fashion trends in {region} for men and women?"
-                response = requests.post(
-                    "https://api.openai.com/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {st.secrets['OPENAI_API_KEY']}",
-                        "Content-Type": "application/json"
-                    },
-                    json={
-                        "model": "gpt-4",
-                        "messages": [
-                            {"role": "system", "content": "You are a global fashion expert."},
-                            {"role": "user", "content": trend_prompt}
-                        ],
-                        "max_tokens": 300
-                    }
-                )
-                if response.status_code == 200:
-                    trend_result = response.json()["choices"][0]["message"]["content"]
-                    st.success("🌟 Fashion Trends:")
-                    st.markdown(trend_result)
-                else:
-                    st.error(f"❌ Error {response.status_code}: {response.text}")
-            except Exception as e:
-                st.error(f"❌ Exception occurred: {e}")
+st.sidebar.markdown("""
+📱 *iPhone users: For best results, please use Safari browser to upload images directly from the camera.*
+""")
