@@ -7,7 +7,6 @@ import time
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-
 # ---------- Custom Welcome Page (Only show once) ----------
 if "show_welcome" not in st.session_state:
     st.session_state.show_welcome = True
@@ -68,7 +67,7 @@ st.sidebar.caption("Created by gosho1992 • [GitHub](https://github.com/Gosho19
 
 with st.sidebar.expander("ℹ️ How It Works"):
     st.markdown("""
-    1. **Upload** an image of your clothing item (shirt, dress, etc.).
+    1. **Upload** an image of your clothing item (shirt, dress, etc.) using camera or gallery.
     2. Select **Occasion**, **Season**, and **Age Group**.
     3. Our AI will generate a **matching outfit suggestion**.
     4. Download your personalized suggestion if you'd like!
@@ -86,14 +85,16 @@ tab1, tab2 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Fashion Assistant
 # ---------- Outfit Suggestion Tab ----------
 with tab1:
     st.markdown("<h1 style='text-align: center;'>👕 AI Fashion Outfit Suggestions</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Upload an image, and AI will suggest a matching outfit in seconds!</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'>Upload an image or take a photo, and AI will suggest a matching outfit in seconds!</p>", unsafe_allow_html=True)
 
     occasion = st.selectbox("👗 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work"])
     season = st.selectbox("☀️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn"])
     age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"])
     style_memory_enabled = st.toggle("🧠 Enable Style Memory", value=False)
 
-    uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+    uploaded_file = st.file_uploader("Choose an image or take a photo...", type=["jpg", "jpeg", "png"])
+
+    st.markdown("_Tip: On mobile, tap 'Choose file' to either upload from gallery or take a photo using your camera._")
 
     if uploaded_file is not None:
         image = Image.open(uploaded_file).convert("RGB")
