@@ -97,20 +97,29 @@ with tab1:
     st.markdown("_Tip: On mobile, tap 'Choose file' to either upload from gallery or take a photo using your camera._")
 
     if uploaded_file is not None:
-        image = Image.open(uploaded_file).convert("RGB")
-        image = image.resize((500, 500))
-        st.image(image, caption="📸 Uploaded Image", use_container_width=True)
+    # Validate uploaded image
+    if uploaded_file.type.startswith("image/"):
+        try:
+            image = Image.open(uploaded_file).convert("RGB")
+        except Exception as e:
+            st.error("⚠️ Could not read the image. Try uploading from gallery instead.")
+            st.stop()
+    else:
+        st.error("⚠️ Unsupported file type. Please upload a JPG or PNG image.")
+        st.stop()
 
-        img_bytes = io.BytesIO()
-        image.save(img_bytes, format="JPEG", quality=70)
-        img_bytes.seek(0)
+    image = image.resize((500, 500))
+    st.image(image, caption="📸 Uploaded Image", use_container_width=True)
 
-        data = {
-            "occasion": occasion,
-            "season": season,
-            "age": age
-        }
+    img_bytes = io.BytesIO()
+    image.save(img_bytes, format="JPEG", quality=70)
+    img_bytes.seek(0)
 
+    data = {
+        "occasion": occasion,
+        "season": season,
+        "age": age
+    }
         files = {
             'file': ('resized.jpg', img_bytes, 'image/jpeg')
         }
