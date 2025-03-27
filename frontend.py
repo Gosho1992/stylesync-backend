@@ -80,7 +80,7 @@ with st.sidebar.expander("🧠 What is Style Memory?"):
     """)
 
 # ---------- Tabs ----------
-tab1, tab2 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Fashion Assistant"])
+tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Fashion Assistant", "🧵 Fashion Trends"])
 
 # ---------- Outfit Suggestion Tab ----------
 with tab1:
@@ -97,11 +97,10 @@ with tab1:
     st.markdown("_Tip: On mobile, tap 'Choose file' to either upload from gallery or take a photo using your camera._")
 
     if uploaded_file is not None:
-        # Validate uploaded image
         if uploaded_file.type.startswith("image/"):
             try:
                 image = Image.open(uploaded_file).convert("RGB")
-            except Exception as e:
+            except Exception:
                 st.error("⚠️ Could not read the image. Try uploading from gallery instead.")
                 st.stop()
         else:
@@ -160,6 +159,9 @@ with tab1:
             for img in st.session_state.style_memory:
                 st.image(img, width=200)
 
+    if st.button("🔄 Refresh App"):
+        st.experimental_rerun()
+
 # ---------- Travel Fashion Assistant Tab ----------
 with tab2:
     st.markdown("<h2>✈️ Travel Fashion Assistant</h2>", unsafe_allow_html=True)
@@ -204,3 +206,35 @@ with tab2:
 
                 except Exception as e:
                     st.error(f"❌ Exception: {e}")
+
+# ---------- Fashion Trends Tab ----------
+with tab3:
+    st.markdown("<h2>🧵 Fashion Trends</h2>", unsafe_allow_html=True)
+    region = st.selectbox("🌍 Select Region", ["Global", "Pakistan", "India", "USA", "Europe", "Middle East"])
+    if st.button("✨ Show Trends"):
+        with st.spinner("Fetching fashion trends..."):
+            try:
+                trend_prompt = f"What are the current fashion trends in {region} for men and women?"
+                response = requests.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {st.secrets['OPENAI_API_KEY']}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": "gpt-4",
+                        "messages": [
+                            {"role": "system", "content": "You are a global fashion expert who shares trend summaries."},
+                            {"role": "user", "content": trend_prompt}
+                        ],
+                        "max_tokens": 300
+                    }
+                )
+                if response.status_code == 200:
+                    trend_result = response.json()["choices"][0]["message"]["content"]
+                    st.success("🌟 Fashion Trends:")
+                    st.markdown(trend_result)
+                else:
+                    st.error(f"❌ Error {response.status_code}: {response.text}")
+            except Exception as e:
+                st.error(f"❌ Exception occurred: {e}")
