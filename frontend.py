@@ -7,24 +7,21 @@ import time
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# ---------- Custom Welcome Page (Only show once) ----------
+# ---------- Welcome Splash (Once per session) ----------
 if "show_welcome" not in st.session_state:
     st.session_state.show_welcome = True
 
 if st.session_state.show_welcome:
     st.set_page_config(page_title="StyleSync", layout="wide")
-    st.markdown(
-        """
+    st.markdown("""
         <div style='background: linear-gradient(to right, #a18cd1, #fbc2eb);
                     height:100vh; display:flex; flex-direction:column;
                     justify-content:center; align-items:center;
                     color: white; text-align:center;'>
-            <h1 style='font-size: 4rem; margin-bottom: 0;'>Welcome to StyleSync</h1>
+            <h1 style='font-size: 4rem;'>Welcome to StyleSync</h1>
             <p style='font-size: 1.5rem;'>Your AI-powered clothing assistant</p>
         </div>
-        """,
-        unsafe_allow_html=True
-    )
+    """, unsafe_allow_html=True)
     time.sleep(5)
     st.session_state.show_welcome = False
     st.rerun()
@@ -32,25 +29,12 @@ if st.session_state.show_welcome:
 # ---------- Custom CSS ----------
 st.markdown("""
     <style>
-        .stApp {
-            background-color: #f0f8ff;
-            padding: 2rem;
-        }
-        .css-18ni7ap.e8zbici2 {
-            color: #003366;
-            text-align: center;
-        }
-        .stButton>button {
-            background-color: #0066cc;
-            color: white;
-            padding: 0.5rem 1.5rem;
-            border-radius: 8px;
-        }
+        .stApp { background-color: #f0f8ff; padding: 2rem; }
+        .css-18ni7ap.e8zbici2 { color: #003366; text-align: center; }
+        .stButton>button { background-color: #0066cc; color: white; padding: 0.5rem 1.5rem; border-radius: 8px; }
         .stMarkdown, .stImage {
-            background-color: #ffffff;
-            padding: 1rem;
-            border-radius: 10px;
-            box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.05);
+            background-color: #ffffff; padding: 1rem;
+            border-radius: 10px; box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.05);
         }
     </style>
 """, unsafe_allow_html=True)
@@ -67,16 +51,16 @@ st.sidebar.caption("Created by gosho1992 • [GitHub](https://github.com/Gosho19
 
 with st.sidebar.expander("ℹ️ How It Works"):
     st.markdown("""
-    1. **Upload** an image of your clothing item (shirt, dress, etc.) using camera or gallery.
+    1. **Upload** an image of your clothing item (shirt, dress, etc.).
     2. Select **Occasion**, **Season**, and **Age Group**.
-    3. Our AI will generate a **matching outfit suggestion**.
-    4. Download your personalized suggestion if you'd like!
+    3. AI will generate a **matching outfit suggestion**.
+    4. Download your personalized suggestion!
     """)
 
 with st.sidebar.expander("🧠 What is Style Memory?"):
     st.markdown("""
     Style Memory keeps track of outfits you've uploaded in the session. 
-    It helps recommend new combinations based on what you've already added to your wardrobe.
+    It helps recommend new combinations based on what you've already added.
     """)
 
 # ---------- Tabs ----------
@@ -85,7 +69,7 @@ tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Fashion Ass
 # ---------- Outfit Suggestion Tab ----------
 with tab1:
     st.markdown("<h1 style='text-align: center;'>👕 AI Fashion Outfit Suggestions</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Upload an image or take a photo, and AI will suggest a matching outfit in seconds!</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'>Upload an image or take a photo, and AI will suggest a matching outfit!</p>", unsafe_allow_html=True)
 
     occasion = st.selectbox("👗 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work"])
     season = st.selectbox("☀️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn"])
@@ -93,8 +77,7 @@ with tab1:
     style_memory_enabled = st.toggle("🧠 Enable Style Memory", value=False)
 
     uploaded_file = st.file_uploader("Choose an image or take a photo...", type=["jpg", "jpeg", "png"])
-
-    st.markdown("_Tip: On mobile, tap 'Choose file' to either upload from gallery or take a photo using your camera._")
+    st.markdown("_Tip: On mobile, tap 'Choose file' to upload or take a photo._")
 
     if uploaded_file is not None:
         if uploaded_file.type.startswith("image/"):
@@ -104,7 +87,7 @@ with tab1:
                 st.error("⚠️ Could not read the image. Try uploading from gallery instead.")
                 st.stop()
         else:
-            st.error("⚠️ Unsupported file type. Please upload a JPG or PNG image.")
+            st.error("⚠️ Unsupported file type. Please upload JPG or PNG.")
             st.stop()
 
         image = image.resize((500, 500))
@@ -114,15 +97,8 @@ with tab1:
         image.save(img_bytes, format="JPEG", quality=70)
         img_bytes.seek(0)
 
-        data = {
-            "occasion": occasion,
-            "season": season,
-            "age": age
-        }
-
-        files = {
-            'file': ('resized.jpg', img_bytes, 'image/jpeg')
-        }
+        data = { "occasion": occasion, "season": season, "age": age }
+        files = { 'file': ('resized.jpg', img_bytes, 'image/jpeg') }
 
         with st.spinner("Analyzing outfit... Please wait..."):
             try:
@@ -131,24 +107,25 @@ with tab1:
                     files=files,
                     data=data
                 )
-
                 if response.status_code == 200:
                     result = response.json()
                     suggestion = result["fashion_suggestion"]
                     st.success("✅ AI Suggestion:")
-                    st.markdown(suggestion)
 
-                    st.download_button(
-                        label="📥 Download Suggestion",
-                        data=suggestion,
-                        file_name="style_suggestion.txt",
-                        mime="text/plain"
-                    )
+                    # 🔧 Apply better formatting to avoid faded text
+                    st.markdown(f"""
+                    <div style='color:#222; font-size: 1.1rem; line-height: 1.6;'>
+                    {suggestion}
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    st.download_button("📥 Download Suggestion", suggestion, file_name="style_suggestion.txt", mime="text/plain")
+
                 else:
                     st.error(f"❌ Error {response.status_code}: {response.text}")
 
             except Exception as e:
-                st.error(f"❌ Exception occurred: {e}")
+                st.error(f"❌ Exception: {e}")
 
         if style_memory_enabled:
             if "style_memory" not in st.session_state:
@@ -176,7 +153,7 @@ with tab2:
         if submitted and destination:
             travel_prompt = (
                 f"I'm going on a {trip_type.lower()} trip to {destination} in {travel_season}. "
-                f"I am in my {age}. Please suggest appropriate outfits and a packing list."
+                f"I'm in my {age}. Suggest outfits and a packing list."
             )
 
             with st.spinner("🧳 Planning your stylish trip..."):
@@ -190,13 +167,12 @@ with tab2:
                         json={
                             "model": "gpt-4",
                             "messages": [
-                                {"role": "system", "content": "You are a travel fashion stylist. Give weather-appropriate outfit and packing suggestions."},
+                                {"role": "system", "content": "You are a travel fashion stylist."},
                                 {"role": "user", "content": travel_prompt}
                             ],
                             "max_tokens": 400
                         }
                     )
-
                     if response.status_code == 200:
                         travel_suggestion = response.json()["choices"][0]["message"]["content"]
                         st.success("✅ Travel Style Suggestion:")
@@ -224,7 +200,7 @@ with tab3:
                     json={
                         "model": "gpt-4",
                         "messages": [
-                            {"role": "system", "content": "You are a global fashion expert who shares trend summaries."},
+                            {"role": "system", "content": "You are a global fashion expert."},
                             {"role": "user", "content": trend_prompt}
                         ],
                         "max_tokens": 300
