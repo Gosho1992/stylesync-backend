@@ -131,7 +131,7 @@ with tab1:
 
                     st.download_button("📥 Download Suggestion", suggestion, file_name="style_suggestion.txt", mime="text/plain")
 
-                    if st.button("🧍 Generate Outfit Avatar"):
+                   if st.button("🧍 Generate Outfit Avatar"):
     with st.spinner("Creating avatar preview..."):
         try:
             dalle_prompt = f"Cartoon avatar wearing an outfit: {suggestion}. Show accessories if mentioned. Minimalist style."
