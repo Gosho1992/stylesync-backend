@@ -126,9 +126,10 @@ with tab1:
             except Exception as e:
                 st.error(f"❌ Exception: {e}")
 
-        if style_memory_enabled:
-            if "style_memory" not in st.session_state:
-                st.session_state.style_memory = []
+      if style_memory_enabled and "style_memory" in st.session_state:
+    st.markdown("<h3>🧠 Style Memory (Your Uploaded Wardrobe)</h3>", unsafe_allow_html=True)
+    for img in st.session_state.style_memory:
+        st.image(img, width=200)
 
             st.session_state.style_memory.append(image)
 
