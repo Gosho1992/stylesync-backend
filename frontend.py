@@ -139,7 +139,7 @@ with tab1:
 
 
     if st.button("🔄 Refresh App"):
-        st.experimental_rerun()
+        st.rerun()
 
 # ---------- Tab 2 ----------
 with tab2:
