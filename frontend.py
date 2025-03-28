@@ -132,19 +132,20 @@ with tab1:
                     st.download_button("📥 Download Suggestion", suggestion, file_name="style_suggestion.txt", mime="text/plain")
 
                     if st.button("🧍 Generate Outfit Avatar"):
-                        with st.spinner("Creating avatar preview..."):
-                            try:
-                                dalle_prompt = f"Cartoon avatar wearing an outfit: {suggestion}. Show accessories if mentioned. Minimalist style."
-                                dalle_response = client.images.generate(
-                                    model="dall-e-3",
-                                    prompt=dalle_prompt,
-                                    n=1,
-                                    size="512x512"
-                                )
-                                avatar_url = dalle_response.data[0].url
-                                st.image(avatar_url, caption="🧍 Outfit Avatar")
-                            except Exception as e:
-                                st.error(f"Error generating avatar: {e}")
+    with st.spinner("Creating avatar preview..."):
+        try:
+            dalle_prompt = f"Cartoon avatar wearing an outfit: {suggestion}. Show accessories if mentioned. Minimalist style."
+            dalle_response = client.images.generate(
+                model="dall-e-3",
+                prompt=dalle_prompt,
+                size="1024x1024",
+                quality="standard",
+                n=1
+            )
+            avatar_url = dalle_response.data[0].url
+            st.image(avatar_url, caption="🧍 Outfit Avatar")
+        except Exception as e:
+            st.error(f"Error generating avatar: {e}")
                 else:
                     st.error(f"❌ Error {response.status_code}: {response.text}")
             except Exception as e:
