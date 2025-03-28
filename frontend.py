@@ -4,6 +4,8 @@ from PIL import Image
 import io
 import time
 from openai import OpenAI
+from gtts import gTTS
+import base64
 
 # Initialize OpenAI client
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
@@ -55,7 +57,7 @@ with st.sidebar.expander("ℹ️ How It Works"):
     1. **Upload** an image of your clothing item (shirt, dress, etc.).
     2. Select **Occasion**, **Season**, **Age Group**, and **Gender**.
     3. AI will generate a **matching outfit suggestion**.
-    4. Download your personalized suggestion!
+    4. Download or **listen** to your personalized suggestion in your preferred language!
     """)
 
 with st.sidebar.expander("🧠 What is Style Memory?"):
@@ -82,6 +84,8 @@ with tab1:
 
     final_gender = custom_gender if gender == "Other" else gender
     style_memory_enabled = st.toggle("🧠 Enable Style Memory", value=False)
+
+    language = st.selectbox("🌍 Translate suggestion into:", ["English", "Roman Urdu", "French", "German", "Portuguese"])
 
     uploaded_file = st.file_uploader("Choose an image or take a photo...", type=["jpg", "jpeg", "png"])
     st.markdown("_Tip: On mobile, tap 'Choose file' to upload or take a photo. iPhone users should use Safari for best camera support._")
@@ -110,7 +114,7 @@ with tab1:
             "age": age,
             "gender": final_gender
         }
-        files = {'file': ('resized.jpg', img_bytes, 'image/jpeg')}
+        files = { 'file': ('resized.jpg', img_bytes, 'image/jpeg') }
 
         with st.spinner("Analyzing outfit... Please wait..."):
             try:
@@ -122,30 +126,36 @@ with tab1:
                 if response.status_code == 200:
                     result = response.json()
                     suggestion = result["fashion_suggestion"]
+
+                    if language != "English":
+                        translation_prompt = f"Translate this into {language}: {suggestion}"
+                        translation_response = client.chat.completions.create(
+                            model="gpt-4",
+                            messages=[{"role": "user", "content": translation_prompt}]
+                        )
+                        suggestion = translation_response.choices[0].message.content.strip()
+
                     st.success("✅ AI Suggestion:")
                     st.markdown(f"""
-                        <div style='color:#222; font-size: 1.1rem; line-height: 1.6;'>
-                        {suggestion}
-                        </div>
+                    <div style='color:#222; font-size: 1.1rem; line-height: 1.6;'>
+                    {suggestion}
+                    </div>
                     """, unsafe_allow_html=True)
 
                     st.download_button("📥 Download Suggestion", suggestion, file_name="style_suggestion.txt", mime="text/plain")
 
-                    if st.button("🧍 Generate Outfit Avatar"):
-                        with st.spinner("Creating avatar preview..."):
-                            try:
-                                dalle_prompt = f"Cartoon avatar wearing an outfit: {suggestion}. Show accessories if mentioned. Minimalist style."
-                                dalle_response = client.images.generate(
-                                    model="dall-e-3",
-                                    prompt=dalle_prompt,
-                                    size="1024x1024",
-                                    quality="standard",
-                                    n=1
-                                )
-                                avatar_url = dalle_response.data[0].url
-                                st.image(avatar_url, caption="🧍 Outfit Avatar")
-                            except Exception as e:
-                                st.error(f"Error generating avatar: {e}")
+                    if st.button("🔊 Listen to Suggestion"):
+                        tts = gTTS(text=suggestion, lang='en')
+                        tts.save("suggestion.mp3")
+                        audio_file = open("suggestion.mp3", "rb")
+                        audio_bytes = audio_file.read()
+                        b64 = base64.b64encode(audio_bytes).decode()
+                        audio_html = f"""
+                        <audio autoplay controls>
+                        <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
+                        </audio>"""
+                        st.markdown(audio_html, unsafe_allow_html=True)
+
                 else:
                     st.error(f"❌ Error {response.status_code}: {response.text}")
             except Exception as e:
