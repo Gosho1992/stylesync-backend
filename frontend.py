@@ -1,13 +1,16 @@
+# ✅ Final Version of StyleSync Streamlit App (March 28, 2025)
+
 import openai
 import streamlit as st
 import requests
 from PIL import Image
 import io
 import time
+from gtts import gTTS
+import base64
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# Set page config early
 st.set_page_config(page_title="StyleSync", layout="wide")
 
 # ---------- Welcome Splash (Once per session) ----------
@@ -64,17 +67,13 @@ with st.sidebar.expander("🧠 What is Style Memory?"):
     It helps recommend new combinations based on what you've already added.
     """)
 
-st.sidebar.markdown("""
-📱 **iPhone users:** For best results, please use **Safari** to upload images directly from the camera.
-""")
-
 # ---------- Tabs ----------
-tabs = st.tabs(["Outfit Suggestion", "Travel Fashion Assistant", "Fashion Trends"])
-tab1, tab2, tab3 = tabs[0], tabs[1], tabs[2]
+tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Fashion Assistant", "🧵 Fashion Trends"])
 
 # ---------- Tab 1: Outfit Suggestion ----------
 with tab1:
-    st.header("👕 AI Fashion Outfit Suggestions")
+    st.markdown("<h1 style='text-align: center;'>👕 AI Fashion Outfit Suggestions</h1>", unsafe_allow_html=True)
+
     occasion = st.selectbox("👗 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work"])
     season = st.selectbox("☀️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn"])
     age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"])
@@ -83,46 +82,51 @@ with tab1:
     uploaded_file = st.file_uploader("Choose an image or take a photo...", type=["jpg", "jpeg", "png"])
 
     if uploaded_file is not None:
-        if uploaded_file.type.startswith("image/"):
-            try:
-                image = Image.open(uploaded_file).convert("RGB")
-            except Exception:
-                st.error("⚠️ Could not read the image. Try uploading from gallery instead.")
-                st.stop()
-        else:
-            st.error("⚠️ Unsupported file type. Please upload JPG or PNG.")
-            st.stop()
+        try:
+            image = Image.open(uploaded_file).convert("RGB")
+            image = image.resize((500, 500))
+            st.image(image, caption="📸 Uploaded Image", use_container_width=True)
 
-        image = image.resize((500, 500))
-        st.image(image, caption="📸 Uploaded Image", use_container_width=True)
+            img_bytes = io.BytesIO()
+            image.save(img_bytes, format="JPEG", quality=70)
+            img_bytes.seek(0)
 
-        img_bytes = io.BytesIO()
-        image.save(img_bytes, format="JPEG", quality=70)
-        img_bytes.seek(0)
+            data = {"occasion": occasion, "season": season, "age": age}
+            files = {'file': ('resized.jpg', img_bytes, 'image/jpeg')}
 
-        data = {"occasion": occasion, "season": season, "age": age}
-        files = {'file': ('resized.jpg', img_bytes, 'image/jpeg')}
-
-        with st.spinner("Analyzing outfit... Please wait..."):
-            try:
+            with st.spinner("Analyzing outfit... Please wait..."):
                 response = requests.post("https://stylesync-backend-2kz6.onrender.com/upload", files=files, data=data)
-                if response.status_code == 200:
-                    result = response.json()
-                    suggestion = result["fashion_suggestion"]
-                    st.success("✅ AI Suggestion:")
-                    st.markdown(suggestion)
-                    st.download_button("📥 Download Suggestion", suggestion, file_name="style_suggestion.txt", mime="text/plain")
-                else:
-                    st.error(f"❌ Error {response.status_code}: {response.text}")
-            except Exception as e:
-                st.error(f"❌ Exception: {e}")
+
+            if response.status_code == 200:
+                result = response.json()
+                suggestion = result["fashion_suggestion"]
+                st.success("✅ AI Suggestion:")
+                st.markdown(f"<div style='color:#222; font-size: 1.1rem;'>{suggestion}</div>", unsafe_allow_html=True)
+
+                tts = gTTS(text=suggestion, lang='en')
+                tts_fp = io.BytesIO()
+                tts.write_to_fp(tts_fp)
+                tts_fp.seek(0)
+                b64_audio = base64.b64encode(tts_fp.read()).decode()
+                st.markdown(f"""
+                    <audio controls>
+                        <source src="data:audio/mp3;base64,{b64_audio}" type="audio/mp3">
+                        Your browser does not support the audio element.
+                    </audio>
+                """, unsafe_allow_html=True)
+
+                st.download_button("📥 Download Suggestion", suggestion, file_name="style_suggestion.txt", mime="text/plain")
+            else:
+                st.error(f"❌ Error {response.status_code}: {response.text}")
+        except Exception as e:
+            st.error(f"❌ Exception: {e}")
 
         if style_memory_enabled:
             if "style_memory" not in st.session_state:
                 st.session_state.style_memory = []
             st.session_state.style_memory.append(image)
 
-            st.subheader("🧠 Style Memory (Your Uploaded Wardrobe)")
+            st.markdown("<h3>🧠 Style Memory (Your Uploaded Wardrobe)</h3>", unsafe_allow_html=True)
             for img in st.session_state.style_memory:
                 st.image(img, width=200)
 
@@ -131,7 +135,7 @@ with tab1:
 
 # ---------- Tab 2: Travel Fashion Assistant ----------
 with tab2:
-    st.header("✈️ Travel Fashion Assistant")
+    st.markdown("<h2>✈️ Travel Fashion Assistant</h2>", unsafe_allow_html=True)
     with st.form("travel_form"):
         destination = st.text_input("🌍 Destination", placeholder="e.g. Istanbul")
         travel_season = st.selectbox("🗓️ Season", ["Spring", "Summer", "Autumn", "Winter"])
@@ -172,7 +176,7 @@ with tab2:
 
 # ---------- Tab 3: Fashion Trends ----------
 with tab3:
-    st.header("🧵 Fashion Trends")
+    st.markdown("<h2>🧵 Fashion Trends</h2>", unsafe_allow_html=True)
     region = st.selectbox("🌍 Select Region", ["Global", "Pakistan", "India", "USA", "Europe", "Middle East"])
     if st.button("✨ Show Trends"):
         with st.spinner("Fetching fashion trends..."):
