@@ -129,6 +129,20 @@ with tab1:
                     """, unsafe_allow_html=True)
 
                     st.download_button("📥 Download Suggestion", suggestion, file_name="style_suggestion.txt", mime="text/plain")
+
+                    if st.button("🧍 Generate Outfit Avatar"):
+                        with st.spinner("Creating avatar preview..."):
+                            try:
+                                dalle_prompt = f"Cartoon avatar wearing an outfit: {suggestion}. Show accessories if mentioned. Minimalist style."
+                                dalle_response = openai.Image.create(
+                                    prompt=dalle_prompt,
+                                    n=1,
+                                    size="512x512"
+                                )
+                                avatar_url = dalle_response["data"][0]["url"]
+                                st.image(avatar_url, caption="🧍 Outfit Avatar")
+                            except Exception as e:
+                                st.error(f"Error generating avatar: {e}")
                 else:
                     st.error(f"❌ Error {response.status_code}: {response.text}")
             except Exception as e:
@@ -145,84 +159,3 @@ with tab1:
 
     if st.button("🔄 Refresh App"):
         st.experimental_rerun()
-
-# ---------- Travel Fashion Assistant Tab ----------
-with tab2:
-    st.markdown("<h2>✈️ Travel Fashion Assistant</h2>", unsafe_allow_html=True)
-    with st.form("travel_form"):
-        st.markdown("Get outfit and packing suggestions for your next trip!")
-        destination = st.text_input("🌍 Destination", placeholder="e.g. Istanbul")
-        travel_season = st.selectbox("🗓️ Season", ["Spring", "Summer", "Autumn", "Winter"])
-        trip_type = st.selectbox("💼 Trip Type", ["Casual", "Business", "Wedding", "Adventure"])
-        age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"])
-        gender = st.selectbox("⚧️ Gender", ["Female", "Male", "Non-binary", "Genderfluid", "Agender", "Other"], key="gender_travel")
-        custom_gender = ""
-        if gender == "Other":
-            custom_gender = st.text_input("Please specify your gender", key="custom_gender_travel")
-        final_gender = custom_gender if gender == "Other" else gender
-
-        submitted = st.form_submit_button("Get Travel Suggestions")
-
-        if submitted and destination:
-            travel_prompt = (
-                f"I'm a {final_gender.lower()} going on a {trip_type.lower()} trip to {destination} in {travel_season}. "
-                f"I'm in my {age}. Suggest outfits and a packing list."
-            )
-
-            with st.spinner("🧳 Planning your stylish trip..."):
-                try:
-                    response = requests.post(
-                        "https://api.openai.com/v1/chat/completions",
-                        headers={
-                            "Authorization": f"Bearer {st.secrets['OPENAI_API_KEY']}",
-                            "Content-Type": "application/json"
-                        },
-                        json={
-                            "model": "gpt-4",
-                            "messages": [
-                                {"role": "system", "content": "You are a travel fashion stylist."},
-                                {"role": "user", "content": travel_prompt}
-                            ],
-                            "max_tokens": 400
-                        }
-                    )
-                    if response.status_code == 200:
-                        travel_suggestion = response.json()["choices"][0]["message"]["content"]
-                        st.success("✅ Travel Style Suggestion:")
-                        st.markdown(travel_suggestion)
-                    else:
-                        st.error(f"❌ Error {response.status_code}: {response.text}")
-                except Exception as e:
-                    st.error(f"❌ Exception: {e}")
-
-# ---------- Fashion Trends Tab ----------
-with tab3:
-    st.markdown("<h2>🧵 Fashion Trends</h2>", unsafe_allow_html=True)
-    region = st.selectbox("🌍 Select Region", ["Global", "Pakistan", "India", "USA", "Europe", "Middle East"])
-    if st.button("✨ Show Trends"):
-        with st.spinner("Fetching fashion trends..."):
-            try:
-                trend_prompt = f"What are the current fashion trends in {region} for men and women?"
-                response = requests.post(
-                    "https://api.openai.com/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {st.secrets['OPENAI_API_KEY']}",
-                        "Content-Type": "application/json"
-                    },
-                    json={
-                        "model": "gpt-4",
-                        "messages": [
-                            {"role": "system", "content": "You are a global fashion expert."},
-                            {"role": "user", "content": trend_prompt}
-                        ],
-                        "max_tokens": 300
-                    }
-                )
-                if response.status_code == 200:
-                    trend_result = response.json()["choices"][0]["message"]["content"]
-                    st.success("🌟 Fashion Trends:")
-                    st.markdown(trend_result)
-                else:
-                    st.error(f"❌ Error {response.status_code}: {response.text}")
-            except Exception as e:
-                st.error(f"❌ Exception occurred: {e}")
