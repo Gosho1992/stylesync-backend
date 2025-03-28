@@ -1,11 +1,12 @@
-import openai
 import streamlit as st
 import requests
 from PIL import Image
 import io
 import time
+from openai import OpenAI
 
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+# Initialize OpenAI client
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # ---------- Welcome Splash (Once per session) ----------
 if "show_welcome" not in st.session_state:
@@ -134,12 +135,13 @@ with tab1:
                         with st.spinner("Creating avatar preview..."):
                             try:
                                 dalle_prompt = f"Cartoon avatar wearing an outfit: {suggestion}. Show accessories if mentioned. Minimalist style."
-                                dalle_response = openai.Image.create(
+                                dalle_response = client.images.generate(
+                                    model="dall-e-3",
                                     prompt=dalle_prompt,
                                     n=1,
                                     size="512x512"
                                 )
-                                avatar_url = dalle_response["data"][0]["url"]
+                                avatar_url = dalle_response.data[0].url
                                 st.image(avatar_url, caption="🧍 Outfit Avatar")
                             except Exception as e:
                                 st.error(f"Error generating avatar: {e}")
