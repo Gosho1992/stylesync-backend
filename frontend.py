@@ -3,13 +3,11 @@ import streamlit as st
 import requests
 from PIL import Image
 from gtts import gTTS
-from googletrans import Translator
+from deep_translator import GoogleTranslator
 import io
 import time
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
-
-translator = Translator()
 
 st.set_page_config(page_title="StyleSync", layout="wide")
 
@@ -122,7 +120,7 @@ with tab1:
                     suggestion = result["fashion_suggestion"]
 
                     # Translation
-                    translated = translator.translate(suggestion, dest=lang_codes[language_option]).text
+                    translated = GoogleTranslator(source='auto', target=lang_codes[language_option]).translate(suggestion)
 
                     st.success("✅ AI Suggestion:")
                     st.markdown(translated, unsafe_allow_html=True)
@@ -187,7 +185,7 @@ with tab2:
                     )
                     if response.status_code == 200:
                         suggestion = response.json()["choices"][0]["message"]["content"]
-                        translated = translator.translate(suggestion, dest=lang_codes[language_option]).text
+                        translated = GoogleTranslator(source='auto', target=lang_codes[language_option]).translate(suggestion)
                         st.success("✅ Travel Style Suggestion:")
                         st.markdown(translated)
 
@@ -227,7 +225,7 @@ with tab3:
                 )
                 if response.status_code == 200:
                     trend_result = response.json()["choices"][0]["message"]["content"]
-                    translated = translator.translate(trend_result, dest=lang_codes[language_option]).text
+                    translated = GoogleTranslator(source='auto', target=lang_codes[language_option]).translate(trend_result)
                     st.success("🌟 Fashion Trends:")
                     st.markdown(translated)
 
