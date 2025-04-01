@@ -3,10 +3,13 @@ import streamlit as st
 import requests
 from PIL import Image
 from gtts import gTTS
+from googletrans import Translator
 import io
 import time
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
+
+translator = Translator()
 
 st.set_page_config(page_title="StyleSync", layout="wide")
 
@@ -16,7 +19,7 @@ if "show_welcome" not in st.session_state:
 
 if st.session_state.show_welcome:
     st.markdown("""
-        <div style='background: linear-gradient(to right, #a18cd1, #fbc2eb);
+        <div style='background: linear-gradient(to right, #fbd3e9, #bb377d);
                     height:100vh; display:flex; flex-direction:column;
                     justify-content:center; align-items:center;
                     color: white; text-align:center;'>
@@ -31,7 +34,7 @@ if st.session_state.show_welcome:
 # ---------- CSS ----------
 st.markdown("""
     <style>
-        .stApp { background-color: #f0f8ff; padding: 2rem; }
+        .stApp { background: linear-gradient(to right, #dfe9f3, #ffffff); padding: 2rem; }
         .stButton>button { background-color: #0066cc; color: white; padding: 0.5rem 1.5rem; border-radius: 8px; }
         .stMarkdown, .stImage {
             background-color: #ffffff; padding: 1rem;
@@ -65,6 +68,15 @@ with st.sidebar.expander("🧠 What is Style Memory?"):
     Style Memory keeps track of outfits you've uploaded in the session. 
     It helps recommend new combinations based on what you've already added.
     """)
+
+language_option = st.sidebar.selectbox("🌐 Choose Language for Suggestions", ["English", "Roman Urdu", "French", "German", "Portuguese"])
+lang_codes = {
+    "English": "en",
+    "Roman Urdu": "ur",
+    "French": "fr",
+    "German": "de",
+    "Portuguese": "pt"
+}
 
 # ---------- Tabs ----------
 tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Fashion Assistant", "🧵 Fashion Trends"])
@@ -108,38 +120,38 @@ with tab1:
                 if response.status_code == 200:
                     result = response.json()
                     suggestion = result["fashion_suggestion"]
+
+                    # Translation
+                    translated = translator.translate(suggestion, dest=lang_codes[language_option]).text
+
                     st.success("✅ AI Suggestion:")
-                    st.markdown(suggestion, unsafe_allow_html=True)
+                    st.markdown(translated, unsafe_allow_html=True)
+                    st.download_button("📥 Download Suggestion", translated, file_name="style_suggestion.txt", mime="text/plain")
 
-                    st.download_button("📥 Download Suggestion", suggestion, file_name="style_suggestion.txt", mime="text/plain")
-
-                    # Text-to-speech
                     if st.button("🔊 Listen to Suggestion"):
-                        tts = gTTS(text=suggestion, lang='en')
+                        tts = gTTS(text=translated, lang=lang_codes[language_option])
                         tts_bytes = io.BytesIO()
                         tts.write_to_fp(tts_bytes)
                         tts_bytes.seek(0)
                         st.audio(tts_bytes, format="audio/mp3")
-
                 else:
                     st.error(f"❌ Error {response.status_code}: {response.text}")
             except Exception as e:
                 st.error(f"❌ Exception: {e}")
 
-    if style_memory_enabled:
-        if "style_memory" not in st.session_state:
-            st.session_state.style_memory = []
+        if style_memory_enabled:
+            if "style_memory" not in st.session_state:
+                st.session_state.style_memory = []
 
-        st.session_state.style_memory.append(image)
+            st.session_state.style_memory.append(image)
 
-        if st.session_state.style_memory:
-            st.markdown("<h3>🧠 Style Memory (Your Uploaded Wardrobe)</h3>", unsafe_allow_html=True)
-            for img in st.session_state.style_memory:
-                st.image(img, width=200)
-
+            if st.session_state.style_memory:
+                st.markdown("<h3>🧠 Style Memory (Your Uploaded Wardrobe)</h3>", unsafe_allow_html=True)
+                for img in st.session_state.style_memory:
+                    st.image(img, width=200)
 
     if st.button("🔄 Refresh App"):
-        st.rerun()
+        st.experimental_rerun()
 
 # ---------- Tab 2 ----------
 with tab2:
@@ -175,8 +187,16 @@ with tab2:
                     )
                     if response.status_code == 200:
                         suggestion = response.json()["choices"][0]["message"]["content"]
+                        translated = translator.translate(suggestion, dest=lang_codes[language_option]).text
                         st.success("✅ Travel Style Suggestion:")
-                        st.markdown(suggestion)
+                        st.markdown(translated)
+
+                        if st.button("🔊 Listen to Travel Suggestion"):
+                            tts = gTTS(text=translated, lang=lang_codes[language_option])
+                            tts_bytes = io.BytesIO()
+                            tts.write_to_fp(tts_bytes)
+                            tts_bytes.seek(0)
+                            st.audio(tts_bytes, format="audio/mp3")
                     else:
                         st.error(f"❌ Error {response.status_code}: {response.text}")
                 except Exception as e:
@@ -207,8 +227,16 @@ with tab3:
                 )
                 if response.status_code == 200:
                     trend_result = response.json()["choices"][0]["message"]["content"]
+                    translated = translator.translate(trend_result, dest=lang_codes[language_option]).text
                     st.success("🌟 Fashion Trends:")
-                    st.markdown(trend_result)
+                    st.markdown(translated)
+
+                    if st.button("🔊 Listen to Trends"):
+                        tts = gTTS(text=translated, lang=lang_codes[language_option])
+                        tts_bytes = io.BytesIO()
+                        tts.write_to_fp(tts_bytes)
+                        tts_bytes.seek(0)
+                        st.audio(tts_bytes, format="audio/mp3")
                 else:
                     st.error(f"❌ Error {response.status_code}: {response.text}")
             except Exception as e:
