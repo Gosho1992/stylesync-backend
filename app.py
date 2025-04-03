@@ -71,17 +71,17 @@ def upload_image():
             f"Make the suggestion specific, stylish, and trendy."
         )
 
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are a fashion expert. Give stylish and practical fashion suggestions."},
-                {"role": "user", "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-                ]}
-            ],
-            max_tokens=300
-        )
+    response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "system", "content": "You are a fashion expert. Give stylish and practical fashion suggestions."},
+        {"role": "user", "content": [
+            {"type": "text", "text": prompt},
+            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+        ]}
+    ],
+    max_tokens=300
+)
 
         fashion_advice = response.choices[0].message.content
 
