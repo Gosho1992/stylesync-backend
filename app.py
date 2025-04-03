@@ -63,14 +63,15 @@ def upload_image():
     # Send to OpenAI
     try:
         prompt = (
-    f"Aap ek high-end fashion stylist hain jo user ko personally style kar raha hai. "
-    f"Uploaded item ko central piece samjhein, lekin baqi complete outfit (shoes, pants, jacket, accessories) ka suggestion dein. "
-    f"User ne occasion select kiya hai: '{occasion.lower()}', season: '{season.lower()}', age group: '{age_group.lower()}', mood: '{mood.lower()}'. "
-    f"In filters ko samajh kar ek stylish theme tay karein (e.g. playful, romantic, elegant). "
-    f"Har item (top, bottom, shoes, accessories, outerwear) ke liye ek trendy aur culture-aware recommendation dein – jaise agar user Pakistan mein ho toh shalwar kameez ya sandals ka zikar ho sakta hai. "
-    f"Style ko real stylist ki tarah samjhayen, jaise aap user se baat kar rahe ho. "
-    f"Jaise: 'Since you're feeling {mood.lower()} today and it's {season.lower()}, I’d pair that with…' "
-    f"Suggestions ko bullet points mein dein – aur last mein ek chhoti si summary bhi dein ke overall look kaisa lagega."
+prompt = (
+    f"You are a high-end fashion stylist and personal wardrobe consultant. "
+    f"The image includes a clothing item being worn, but please ignore the person entirely and focus only on the fashion piece. "
+    f"Based on the occasion '{occasion.lower()}', season '{season.lower()}', age group '{age_group.lower()}', and the current mood '{mood.lower()}', "
+    f"curate a complete, stylish outfit *around* this item — including suggestions for trousers, shoes, outerwear, and accessories. "
+    f"Add touches that reflect cultural context from the user's region (e.g., shalwar kameez in Pakistan, trench coats in Europe). "
+    f"Speak in an elegant and friendly stylist tone, as if you're prepping your client for a photoshoot or a big event. "
+    f"Also, give it a warm personal touch — say something like, 'Since you're feeling {mood.lower()} today, I'd recommend...' "
+    f"Make it fun, trendy, and helpful — like a stylist friend who just gets your vibe!"
 )
 
         response = client.chat.completions.create(
