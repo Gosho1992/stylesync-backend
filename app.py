@@ -35,7 +35,7 @@ def encode_image(image_path):
 def home():
     return jsonify({"message": "StyleSync Backend is Live!"})
 
-# Route for uploading images and getting fashion suggestions
+# Upload endpoint
 @app.route("/upload", methods=["POST"])
 def upload_image():
     if "file" not in request.files:
@@ -51,12 +51,11 @@ def upload_image():
     age_group = request.form.get("age", "Any")
     mood = request.form.get("mood", "Neutral")
 
-    # Save the uploaded file
+    # Save uploaded image
     filename = secure_filename(file.filename)
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     file.save(filepath)
 
-    # Convert image to Base64
     base64_image = encode_image(filepath)
     if not base64_image:
         return jsonify({"error": "Failed to process image"}), 500
@@ -71,17 +70,17 @@ def upload_image():
             f"Make the suggestion specific, stylish, and trendy."
         )
 
-    response = client.chat.completions.create(
-    model="gpt-4o",
-    messages=[
-        {"role": "system", "content": "You are a fashion expert. Give stylish and practical fashion suggestions."},
-        {"role": "user", "content": [
-            {"type": "text", "text": prompt},
-            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-        ]}
-    ],
-    max_tokens=300
-)
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a fashion expert. Give stylish and practical fashion suggestions."},
+                {"role": "user", "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                ]}
+            ],
+            max_tokens=300
+        )
 
         fashion_advice = response.choices[0].message.content
 
@@ -95,21 +94,7 @@ def upload_image():
         print(f"Error calling OpenAI API: {str(e)}")
         return jsonify({"error": "Failed to get response from OpenAI"}), 500
 
-
-        # Extract AI-generated fashion advice
-        fashion_advice = response.choices[0].message.content
-
-        return jsonify({
-            "message": "Image uploaded successfully",
-            "filename": filename,
-            "fashion_suggestion": fashion_advice
-        })
-
-    except Exception as e:
-        print(f"Error calling OpenAI API: {str(e)}")
-        return jsonify({"error": "Failed to get response from OpenAI"}), 500
-
-# Run the Flask app
+# Run the app
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port, debug=True)

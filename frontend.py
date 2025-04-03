@@ -107,9 +107,6 @@ lang_codes = {
     "Portuguese": "pt"
 }
 
-
-])
-
 # ---------- Tabs ----------
 tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Fashion Assistant", "🧵 Fashion Trends"])
 
@@ -121,7 +118,7 @@ with tab1:
     occasion = st.selectbox("👗 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work"])
     season = st.selectbox("☀️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn"])
     age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"])
-    mood = st.sidebar.selectbox("🧠 Select Your Mood", ["Happy", "Lazy", "Motivated", "Romantic", "Confident", "Chill","Adventurous", "Classy", "Energetic", "Bold", "Elegant", "Sad","Adventurous", "Classy", "Sporty", "Lazy", "Professional", "Playful"])
+    mood = st.selectbox("🧠 Select Your Mood", ["Happy", "Lazy", "Motivated", "Romantic", "Confident", "Chill", "Adventurous", "Classy", "Energetic", "Bold", "Elegant", "Sad", "Sporty", "Professional", "Playful"])
     style_memory_enabled = st.toggle("🧠 Enable Style Memory", value=False)
 
     uploaded_file = st.file_uploader("Choose an image or take a photo...", type=["jpg", "jpeg", "png"])
@@ -149,35 +146,25 @@ with tab1:
 
         with st.spinner("Analyzing outfit..."):
             try:
-                prompt = (
-                    f"You are a high-end fashion stylist. Suggest a complete outfit based on the uploaded item, "
-                    f"the selected occasion ({occasion}), age group ({age}), season ({season}), and mood ({mood}). "
-                    f"Also, include cultural clothing preferences based on the user's region (e.g., shalwar kameez in Pakistan, trench coats in Europe). "
-                    f"Make the suggestion specific, stylish, and trendy."
-                )
+                response = requests.post("https://stylesync-backend-2kz6.onrender.com/upload", files=files, data=data)
+                if response.status_code == 200:
+                    result = response.json()
+                    suggestion = result["fashion_suggestion"]
+                    translated = GoogleTranslator(source='auto', target=lang_codes[language_option]).translate(suggestion)
 
-                response = openai.chat.completions.create(
-                    model="gpt-4",
-                    messages=[
-                        {"role": "system", "content": "You are a fashion stylist."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    max_tokens=300
-                )
+                    st.success("✅ AI Suggestion:")
+                    st.markdown(translated, unsafe_allow_html=True)
+                    st.download_button("📥 Download Suggestion", translated, file_name="style_suggestion.txt", mime="text/plain")
 
-                suggestion = response.choices[0].message.content.strip()
-                translated = GoogleTranslator(source='auto', target=lang_codes[language_option]).translate(suggestion)
+                    if st.button("🔊 Listen to Suggestion"):
+                        tts = gTTS(text=translated, lang=lang_codes[language_option])
+                        tts_bytes = io.BytesIO()
+                        tts.write_to_fp(tts_bytes)
+                        tts_bytes.seek(0)
+                        st.audio(tts_bytes, format="audio/mp3")
 
-                st.success("✅ AI Suggestion:")
-                st.markdown(translated, unsafe_allow_html=True)
-                st.download_button("📥 Download Suggestion", translated, file_name="style_suggestion.txt", mime="text/plain")
-
-                if st.button("🔊 Listen to Suggestion"):
-                    tts = gTTS(text=translated, lang=lang_codes[language_option])
-                    tts_bytes = io.BytesIO()
-                    tts.write_to_fp(tts_bytes)
-                    tts_bytes.seek(0)
-                    st.audio(tts_bytes, format="audio/mp3")
+                else:
+                    st.error(f"❌ Error {response.status_code}: {response.text}")
 
             except Exception as e:
                 st.error(f"❌ Exception: {e}")
