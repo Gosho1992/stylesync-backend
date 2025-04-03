@@ -56,8 +56,8 @@ st.sidebar.caption("Created by gosho1992 • [GitHub](https://github.com/Gosho19
 with st.sidebar.expander("ℹ️ How It Works"):
     st.markdown("""
     1. Upload an image of your clothing item (shirt, dress, etc.).
-    2. Select Occasion, Season, and Age Group.
-    3. AI will generate a matching outfit suggestion.
+    2. Select Occasion, Season, Age Group, and Mood.
+    3. AI will generate a matching outfit suggestion based on your location.
     4. Download or listen to your personalized suggestion!
     """)
 
@@ -75,6 +75,11 @@ lang_codes = {
     "German": "de",
     "Portuguese": "pt"
 }
+
+mood = st.sidebar.selectbox("🧠 Select Your Mood", [
+    "Happy", "Lazy", "Motivated", "Romantic", "Confident", "Chill",
+    "Adventurous", "Classy", "Energetic", "Bold", "Elegant", "Sad"
+])
 
 # ---------- Tabs ----------
 tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Fashion Assistant", "🧵 Fashion Trends"])
@@ -109,31 +114,41 @@ with tab1:
         image.save(img_bytes, format="JPEG", quality=70)
         img_bytes.seek(0)
 
-        data = {"occasion": occasion, "season": season, "age": age}
+        data = {"occasion": occasion, "season": season, "age": age, "mood": mood}
         files = {'file': ('resized.jpg', img_bytes, 'image/jpeg')}
 
         with st.spinner("Analyzing outfit..."):
             try:
-                response = requests.post("https://stylesync-backend-2kz6.onrender.com/upload", files=files, data=data)
-                if response.status_code == 200:
-                    result = response.json()
-                    suggestion = result["fashion_suggestion"]
+                prompt = (
+                    f"You are a high-end fashion stylist. Suggest a complete outfit based on the uploaded item, "
+                    f"the selected occasion ({occasion}), age group ({age}), season ({season}), and mood ({mood}). "
+                    f"Also, include cultural clothing preferences based on the user's region (e.g., shalwar kameez in Pakistan, trench coats in Europe). "
+                    f"Make the suggestion specific, stylish, and trendy."
+                )
 
-                    # Translation
-                    translated = GoogleTranslator(source='auto', target=lang_codes[language_option]).translate(suggestion)
+                response = openai.chat.completions.create(
+                    model="gpt-4",
+                    messages=[
+                        {"role": "system", "content": "You are a fashion stylist."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=300
+                )
 
-                    st.success("✅ AI Suggestion:")
-                    st.markdown(translated, unsafe_allow_html=True)
-                    st.download_button("📥 Download Suggestion", translated, file_name="style_suggestion.txt", mime="text/plain")
+                suggestion = response.choices[0].message.content.strip()
+                translated = GoogleTranslator(source='auto', target=lang_codes[language_option]).translate(suggestion)
 
-                    if st.button("🔊 Listen to Suggestion"):
-                        tts = gTTS(text=translated, lang=lang_codes[language_option])
-                        tts_bytes = io.BytesIO()
-                        tts.write_to_fp(tts_bytes)
-                        tts_bytes.seek(0)
-                        st.audio(tts_bytes, format="audio/mp3")
-                else:
-                    st.error(f"❌ Error {response.status_code}: {response.text}")
+                st.success("✅ AI Suggestion:")
+                st.markdown(translated, unsafe_allow_html=True)
+                st.download_button("📥 Download Suggestion", translated, file_name="style_suggestion.txt", mime="text/plain")
+
+                if st.button("🔊 Listen to Suggestion"):
+                    tts = gTTS(text=translated, lang=lang_codes[language_option])
+                    tts_bytes = io.BytesIO()
+                    tts.write_to_fp(tts_bytes)
+                    tts_bytes.seek(0)
+                    st.audio(tts_bytes, format="audio/mp3")
+
             except Exception as e:
                 st.error(f"❌ Exception: {e}")
 
@@ -168,35 +183,26 @@ with tab2:
             )
             with st.spinner("🧳 Planning your stylish trip..."):
                 try:
-                    response = requests.post(
-                        "https://api.openai.com/v1/chat/completions",
-                        headers={
-                            "Authorization": f"Bearer {st.secrets['OPENAI_API_KEY']}",
-                            "Content-Type": "application/json"
-                        },
-                        json={
-                            "model": "gpt-4",
-                            "messages": [
-                                {"role": "system", "content": "You are a travel fashion stylist."},
-                                {"role": "user", "content": travel_prompt}
-                            ],
-                            "max_tokens": 400
-                        }
+                    response = openai.chat.completions.create(
+                        model="gpt-4",
+                        messages=[
+                            {"role": "system", "content": "You are a travel fashion stylist."},
+                            {"role": "user", "content": travel_prompt}
+                        ],
+                        max_tokens=400
                     )
-                    if response.status_code == 200:
-                        suggestion = response.json()["choices"][0]["message"]["content"]
-                        translated = GoogleTranslator(source='auto', target=lang_codes[language_option]).translate(suggestion)
-                        st.success("✅ Travel Style Suggestion:")
-                        st.markdown(translated)
 
-                        if st.button("🔊 Listen to Travel Suggestion"):
-                            tts = gTTS(text=translated, lang=lang_codes[language_option])
-                            tts_bytes = io.BytesIO()
-                            tts.write_to_fp(tts_bytes)
-                            tts_bytes.seek(0)
-                            st.audio(tts_bytes, format="audio/mp3")
-                    else:
-                        st.error(f"❌ Error {response.status_code}: {response.text}")
+                    suggestion = response.choices[0].message.content.strip()
+                    translated = GoogleTranslator(source='auto', target=lang_codes[language_option]).translate(suggestion)
+                    st.success("✅ Travel Style Suggestion:")
+                    st.markdown(translated)
+
+                    if st.button("🔊 Listen to Travel Suggestion"):
+                        tts = gTTS(text=translated, lang=lang_codes[language_option])
+                        tts_bytes = io.BytesIO()
+                        tts.write_to_fp(tts_bytes)
+                        tts_bytes.seek(0)
+                        st.audio(tts_bytes, format="audio/mp3")
                 except Exception as e:
                     st.error(f"❌ Exception: {e}")
 
@@ -208,34 +214,24 @@ with tab3:
         with st.spinner("Fetching fashion trends..."):
             try:
                 prompt = f"What are the current fashion trends in {region} for men and women?"
-                response = requests.post(
-                    "https://api.openai.com/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {st.secrets['OPENAI_API_KEY']}",
-                        "Content-Type": "application/json"
-                    },
-                    json={
-                        "model": "gpt-4",
-                        "messages": [
-                            {"role": "system", "content": "You are a global fashion expert."},
-                            {"role": "user", "content": prompt}
-                        ],
-                        "max_tokens": 300
-                    }
+                response = openai.chat.completions.create(
+                    model="gpt-4",
+                    messages=[
+                        {"role": "system", "content": "You are a global fashion expert."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=300
                 )
-                if response.status_code == 200:
-                    trend_result = response.json()["choices"][0]["message"]["content"]
-                    translated = GoogleTranslator(source='auto', target=lang_codes[language_option]).translate(trend_result)
-                    st.success("🌟 Fashion Trends:")
-                    st.markdown(translated)
+                trend_result = response.choices[0].message.content.strip()
+                translated = GoogleTranslator(source='auto', target=lang_codes[language_option]).translate(trend_result)
+                st.success("🌟 Fashion Trends:")
+                st.markdown(translated)
 
-                    if st.button("🔊 Listen to Trends"):
-                        tts = gTTS(text=translated, lang=lang_codes[language_option])
-                        tts_bytes = io.BytesIO()
-                        tts.write_to_fp(tts_bytes)
-                        tts_bytes.seek(0)
-                        st.audio(tts_bytes, format="audio/mp3")
-                else:
-                    st.error(f"❌ Error {response.status_code}: {response.text}")
+                if st.button("🔊 Listen to Trends"):
+                    tts = gTTS(text=translated, lang=lang_codes[language_option])
+                    tts_bytes = io.BytesIO()
+                    tts.write_to_fp(tts_bytes)
+                    tts_bytes.seek(0)
+                    st.audio(tts_bytes, format="audio/mp3")
             except Exception as e:
                 st.error(f"❌ Exception: {e}")
