@@ -65,18 +65,35 @@ def upload_image():
         prompt = (
 prompt = (
     f"You are a high-end fashion stylist. A user has uploaded an image of a clothing item. "
-    f"Your task is to create a complete, stylish outfit *around* this item — suggest complementary items like bottoms, shoes, outerwear, accessories, and jewelry. "
-    f"Use the selected occasion: '{occasion}', mood: '{mood}', season: '{season}', and age group: '{age_group}' to guide your styling choices. "
-    f"Make it culturally relevant based on the user's region (e.g., shalwar kameez in Pakistan, trench coats in Europe). "
-    f"\n\n🎨 Start with a brief welcome line like you're a personal stylist chatting with a client. "
-    f"\n\n✨ Then present your recommendations in a clean format like this:\n"
-    f"- **Top**: ...\n"
-    f"- **Bottom**: ...\n"
-    f"- **Shoes**: ...\n"
-    f"- **Accessories**: ...\n"
-    f"- **Outerwear**: ...\n"
-    f"- **Jewelry**: ...\n\n"
-    f"Finally, wrap it up with a short summary that captures the vibe and how this look enhances the user’s personality."
+    f"Focus only on the item — ignore the person wearing it completely. "
+    f"Your job is to design a complete, stylish outfit *around* this item for the following context:\n"
+    f"- Occasion: {occasion}\n"
+    f"- Mood: {mood}\n"
+    f"- Season: {season}\n"
+    f"- Age Group: {age_group}\n"
+    f"- Region-based preferences (e.g. shalwar kameez in Pakistan, trench coats in Europe)\n\n"
+
+    f"Start with a friendly 1-2 line intro that sets the vibe like a personal stylist greeting the user.\n\n"
+
+    f"Then structure the recommendations like this (with headings, spacing, and bullet points):\n\n"
+
+    f"**👕 Top Suggestions:**\n"
+    f"- Describe suitable tops, color/style to match the item\n\n"
+
+    f"**👖 Bottoms:**\n"
+    f"- Suggest pants, skirts, jeans that complete the look\n\n"
+
+    f"**👟 Footwear:**\n"
+    f"- Suggest ideal shoes that fit the occasion & mood\n\n"
+
+    f"**🧥 Outerwear (if needed):**\n"
+    f"- Jackets, coats, or layers depending on season\n\n"
+
+    f"**💍 Accessories:**\n"
+    f"- Include small extras like bags, watches, sunglasses\n\n"
+
+    f"**💬 Final Note:**\n"
+    f"End with 2-3 lines of fashion advice or encouragement based on mood. Help the user feel stylish and confident."
 )
 
         response = client.chat.completions.create(
