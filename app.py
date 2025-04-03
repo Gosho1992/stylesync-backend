@@ -62,38 +62,41 @@ def upload_image():
 
     # Send to OpenAI
     try:
-        prompt = (
+        
 prompt = (
-    f"You are a high-end fashion stylist. A user has uploaded an image of a clothing item. "
-    f"Focus only on the item — ignore the person wearing it completely. "
-    f"Your job is to design a complete, stylish outfit *around* this item for the following context:\n"
+    f"You are a high-end fashion stylist. A user has uploaded a clothing item. "
+    f"Ignore the person and focus only on styling based on that item. "
+    f"Using these filters:\n"
     f"- Occasion: {occasion}\n"
-    f"- Mood: {mood}\n"
     f"- Season: {season}\n"
     f"- Age Group: {age_group}\n"
-    f"- Region-based preferences (e.g. shalwar kameez in Pakistan, trench coats in Europe)\n\n"
+    f"- Mood: {mood}\n"
+    f"- Region-based fashion (e.g. trench coats in Europe, shalwar kameez in Pakistan)\n\n"
 
-    f"Start with a friendly 1-2 line intro that sets the vibe like a personal stylist greeting the user.\n\n"
+    f"Return a stylish outfit suggestion using this structure in markdown format:\n\n"
 
-    f"Then structure the recommendations like this (with headings, spacing, and bullet points):\n\n"
+    f"**👋 Greeting:**\n"
+    f"A short friendly message to set the tone (1–2 lines).\n\n"
 
-    f"**👕 Top Suggestions:**\n"
-    f"- Describe suitable tops, color/style to match the item\n\n"
+    f"**👕 Top (Central Piece):**\n"
+    f"A fashionable shirt/top that matches the item + mood.\n\n"
 
     f"**👖 Bottoms:**\n"
-    f"- Suggest pants, skirts, jeans that complete the look\n\n"
+    f"Suggested pants, skirts, or jeans.\n\n"
 
-    f"**👟 Footwear:**\n"
-    f"- Suggest ideal shoes that fit the occasion & mood\n\n"
+    f"**👟 Shoes:**\n"
+    f"Footwear based on the season & vibe.\n\n"
 
-    f"**🧥 Outerwear (if needed):**\n"
-    f"- Jackets, coats, or layers depending on season\n\n"
+    f"**🧥 Outerwear:**\n"
+    f"Layered jackets or coats depending on weather.\n\n"
 
     f"**💍 Accessories:**\n"
-    f"- Include small extras like bags, watches, sunglasses\n\n"
+    f"Suggestions like watch, bag, scarf, sunglasses.\n\n"
 
-    f"**💬 Final Note:**\n"
-    f"End with 2-3 lines of fashion advice or encouragement based on mood. Help the user feel stylish and confident."
+    f"**💬 Final Words:**\n"
+    f"End with 1–2 lines of friendly, encouraging fashion advice that fits the user's mood.\n\n"
+
+    f"Write in clear, spaced **markdown format** using bullet points where needed. Avoid using '###', just use headings like '**Section Title:**'. "
 )
 
         response = client.chat.completions.create(
