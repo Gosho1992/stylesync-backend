@@ -64,14 +64,19 @@ def upload_image():
     try:
         prompt = (
 prompt = (
-    f"You are a high-end fashion stylist and personal wardrobe consultant. "
-    f"The image includes a clothing item being worn, but please ignore the person entirely and focus only on the fashion piece. "
-    f"Based on the occasion '{occasion.lower()}', season '{season.lower()}', age group '{age_group.lower()}', and the current mood '{mood.lower()}', "
-    f"curate a complete, stylish outfit *around* this item — including suggestions for trousers, shoes, outerwear, and accessories. "
-    f"Add touches that reflect cultural context from the user's region (e.g., shalwar kameez in Pakistan, trench coats in Europe). "
-    f"Speak in an elegant and friendly stylist tone, as if you're prepping your client for a photoshoot or a big event. "
-    f"Also, give it a warm personal touch — say something like, 'Since you're feeling {mood.lower()} today, I'd recommend...' "
-    f"Make it fun, trendy, and helpful — like a stylist friend who just gets your vibe!"
+    f"You are a high-end fashion stylist. A user has uploaded an image of a clothing item. "
+    f"Your task is to create a complete, stylish outfit *around* this item — suggest complementary items like bottoms, shoes, outerwear, accessories, and jewelry. "
+    f"Use the selected occasion: '{occasion}', mood: '{mood}', season: '{season}', and age group: '{age_group}' to guide your styling choices. "
+    f"Make it culturally relevant based on the user's region (e.g., shalwar kameez in Pakistan, trench coats in Europe). "
+    f"\n\n🎨 Start with a brief welcome line like you're a personal stylist chatting with a client. "
+    f"\n\n✨ Then present your recommendations in a clean format like this:\n"
+    f"- **Top**: ...\n"
+    f"- **Bottom**: ...\n"
+    f"- **Shoes**: ...\n"
+    f"- **Accessories**: ...\n"
+    f"- **Outerwear**: ...\n"
+    f"- **Jewelry**: ...\n\n"
+    f"Finally, wrap it up with a short summary that captures the vibe and how this look enhances the user’s personality."
 )
 
         response = client.chat.completions.create(
