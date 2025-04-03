@@ -32,16 +32,47 @@ if st.session_state.show_welcome:
 # ---------- CSS ----------
 st.markdown("""
     <style>
-        .stApp { background: linear-gradient(to right, #dfe9f3, #ffffff); padding: 2rem; }
-        .stButton>button { background-color: #0066cc; color: white; padding: 0.5rem 1.5rem; border-radius: 8px; }
-        .stMarkdown, .stImage {
-            background-color: #ffffff; padding: 1rem;
-            border-radius: 10px; box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.05);
+        .stApp {
+            background: linear-gradient(45deg, 
+                #ff9a9e, #fad0c4, #fbc2eb, #a18cd1, 
+                #fbc2eb, #ff9a9e, #fbc2eb, #a1c4fd, 
+                #c2e9fb, #d4fc79, #96e6a1);
+            background-size: 200% 200%;
+            animation: rainbow 10s ease infinite;
+            padding: 2rem;
         }
-        h1.center { text-align: center; font-size: 2.2rem; }
-        .tts-button { margin-top: 10px; }
+
+        @keyframes rainbow {
+            0% {background-position: 0% 50%;}
+            50% {background-position: 100% 50%;}
+            100% {background-position: 0% 50%;}
+        }
+
+        .stButton>button {
+            background-color: #0066cc;
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border-radius: 8px;
+        }
+
+        .stMarkdown, .stImage {
+            background-color: #ffffff;
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        h1.center {
+            text-align: center;
+            font-size: 2.2rem;
+        }
+
+        .tts-button {
+            margin-top: 10px;
+        }
     </style>
 """, unsafe_allow_html=True)
+
 
 # ---------- Sidebar ----------
 st.sidebar.image("https://i.imgur.com/y0ywLko.jpeg", width=100)
@@ -76,9 +107,7 @@ lang_codes = {
     "Portuguese": "pt"
 }
 
-mood = st.sidebar.selectbox("🧠 Select Your Mood", [
-    "Happy", "Lazy", "Motivated", "Romantic", "Confident", "Chill",
-    "Adventurous", "Classy", "Energetic", "Bold", "Elegant", "Sad"
+
 ])
 
 # ---------- Tabs ----------
@@ -92,6 +121,7 @@ with tab1:
     occasion = st.selectbox("👗 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work"])
     season = st.selectbox("☀️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn"])
     age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"])
+    mood = st.sidebar.selectbox("🧠 Select Your Mood", ["Happy", "Lazy", "Motivated", "Romantic", "Confident", "Chill","Adventurous", "Classy", "Energetic", "Bold", "Elegant", "Sad","Adventurous", "Classy", "Sporty", "Lazy", "Professional", "Playful"])
     style_memory_enabled = st.toggle("🧠 Enable Style Memory", value=False)
 
     uploaded_file = st.file_uploader("Choose an image or take a photo...", type=["jpg", "jpeg", "png"])

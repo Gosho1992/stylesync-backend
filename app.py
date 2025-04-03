@@ -48,6 +48,8 @@ def upload_image():
     # Get additional form data
     occasion = request.form.get("occasion", "Any")
     season = request.form.get("season", "Any")
+    age_group = request.form.get("age", "Any")
+    mood = request.form.get("mood", "Neutral")
 
     # Save the uploaded file
     filename = secure_filename(file.filename)
@@ -62,8 +64,11 @@ def upload_image():
     # Send to OpenAI
     try:
         prompt = (
-            f"Analyze the clothing item in the image and suggest a matching outfit for a "
-            f"{occasion.lower()} occasion in {season.lower()} season."
+            f"You are a high-end fashion stylist. Suggest a complete outfit based on the uploaded item, "
+            f"the selected occasion '{occasion.lower()}', age group '{age_group.lower()}', "
+            f"season '{season.lower()}', and mood '{mood.lower()}'. "
+            f"Also, include cultural clothing preferences based on user's region (e.g., shalwar kameez in Pakistan, trench coats in Europe). "
+            f"Make the suggestion specific, stylish, and trendy."
         )
 
         response = client.chat.completions.create(
@@ -90,20 +95,6 @@ def upload_image():
         print(f"Error calling OpenAI API: {str(e)}")
         return jsonify({"error": "Failed to get response from OpenAI"}), 500
 
-
-    # Send Image to OpenAI for fashion analysis
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are a fashion expert. Analyze the clothing in the image and suggest a matching outfit."},
-                {"role": "user", "content": [
-                    {"type": "text", "text": "Analyze this clothing item and suggest a matching outfit."},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-                ]}
-            ],
-            max_tokens=300
-        )
 
         # Extract AI-generated fashion advice
         fashion_advice = response.choices[0].message.content
