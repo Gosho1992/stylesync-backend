@@ -63,12 +63,15 @@ def upload_image():
     # Send to OpenAI
     try:
         prompt = (
-            f"You are a high-end fashion stylist. Suggest a complete outfit based on the uploaded item, "
-            f"the selected occasion '{occasion.lower()}', age group '{age_group.lower()}', "
-            f"season '{season.lower()}', and mood '{mood.lower()}'. "
-            f"Also, include cultural clothing preferences based on user's region (e.g., shalwar kameez in Pakistan, trench coats in Europe). "
-            f"Make the suggestion specific, stylish, and trendy."
-        )
+    f"Aap ek high-end fashion stylist hain jo user ko personally style kar raha hai. "
+    f"Uploaded item ko central piece samjhein, lekin baqi complete outfit (shoes, pants, jacket, accessories) ka suggestion dein. "
+    f"User ne occasion select kiya hai: '{occasion.lower()}', season: '{season.lower()}', age group: '{age_group.lower()}', mood: '{mood.lower()}'. "
+    f"In filters ko samajh kar ek stylish theme tay karein (e.g. playful, romantic, elegant). "
+    f"Har item (top, bottom, shoes, accessories, outerwear) ke liye ek trendy aur culture-aware recommendation dein – jaise agar user Pakistan mein ho toh shalwar kameez ya sandals ka zikar ho sakta hai. "
+    f"Style ko real stylist ki tarah samjhayen, jaise aap user se baat kar rahe ho. "
+    f"Jaise: 'Since you're feeling {mood.lower()} today and it's {season.lower()}, I’d pair that with…' "
+    f"Suggestions ko bullet points mein dein – aur last mein ek chhoti si summary bhi dein ke overall look kaisa lagega."
+)
 
         response = client.chat.completions.create(
             model="gpt-4o",
