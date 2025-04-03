@@ -6,6 +6,7 @@ from gtts import gTTS
 from deep_translator import GoogleTranslator
 import io
 import time
+from textwrap import wrap
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
@@ -107,6 +108,22 @@ lang_codes = {
     "Portuguese": "pt"
 }
 
+# --- Helper function to translate long text ---
+from textwrap import wrap
+
+def translate_long_text(text, target_lang_code):
+    chunks = wrap(text, width=4500)
+    translated_chunks = []
+    
+    for chunk in chunks:
+        try:
+            translated_chunk = GoogleTranslator(source='auto', target=target_lang_code).translate(chunk)
+            translated_chunks.append(translated_chunk)
+        except Exception as e:
+            st.warning(f"⚠️ Translation failed for a chunk: {e}")
+    
+    return " ".join(translated_chunks)
+
 # ---------- Tabs ----------
 tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Fashion Assistant", "🧵 Fashion Trends"])
 
@@ -150,7 +167,7 @@ with tab1:
                 if response.status_code == 200:
                     result = response.json()
                     suggestion = result["fashion_suggestion"]
-                    translated = GoogleTranslator(source='auto', target=lang_codes[language_option]).translate(suggestion)
+                    translated = translate_long_text(suggestion, lang_codes[language_option])
 
                     st.success("✅ AI Suggestion:")
                     st.markdown(translated, unsafe_allow_html=True)
