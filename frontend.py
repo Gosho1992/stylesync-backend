@@ -12,6 +12,15 @@ openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 st.set_page_config(page_title="StyleSync", layout="wide")
 
+# ---------- Helper for Long Translations ----------
+def translate_long_text(text, target_lang):
+    chunks = wrap(text, width=4500)
+    translated_chunks = [
+        GoogleTranslator(source='auto', target=target_lang).translate(chunk)
+        for chunk in chunks
+    ]
+    return "\n\n".join(translated_chunks)
+
 # ---------- Welcome Splash (Once per session) ----------
 if "show_welcome" not in st.session_state:
     st.session_state.show_welcome = True
@@ -74,7 +83,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-
 # ---------- Sidebar ----------
 st.sidebar.image("https://i.imgur.com/y0ywLko.jpeg", width=100)
 st.sidebar.title("👗 StyleSync AI")
@@ -89,14 +97,8 @@ with st.sidebar.expander("ℹ️ How It Works"):
     st.markdown("""
     1. Upload an image of your clothing item (shirt, dress, etc.).
     2. Select Occasion, Season, Age Group, and Mood.
-    3. AI will generate a matching outfit suggestion based on your location.
-    4. Download or listen to your personalized suggestion!
-    """)
-
-with st.sidebar.expander("🧠 What is Style Memory?"):
-    st.markdown("""
-    Style Memory keeps track of outfits you've uploaded in the session. 
-    It helps recommend new combinations based on what you've already added.
+    3. Press 'Generate Suggestion'.
+    4. AI will generate a personalized outfit.
     """)
 
 language_option = st.sidebar.selectbox("🌐 Choose Language for Suggestions", ["English", "Roman Urdu", "French", "German", "Portuguese"])
@@ -108,52 +110,30 @@ lang_codes = {
     "Portuguese": "pt"
 }
 
-# --- Helper function to translate long text ---
-from textwrap import wrap
-
-def translate_long_text(text, target_lang_code):
-    chunks = wrap(text, width=4500)
-    translated_chunks = []
-    
-    for chunk in chunks:
-        try:
-            translated_chunk = GoogleTranslator(source='auto', target=target_lang_code).translate(chunk)
-            translated_chunks.append(translated_chunk)
-        except Exception as e:
-            st.warning(f"⚠️ Translation failed for a chunk: {e}")
-    
-    return " ".join(translated_chunks)
-
 # ---------- Tabs ----------
 tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Fashion Assistant", "🧵 Fashion Trends"])
 
 # ---------- Tab 1 ----------
 with tab1:
     st.markdown("<h1 class='center'>👕 AI Fashion Outfit Suggestions</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Upload an image or take a photo, and AI will suggest a matching outfit!</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'>Upload an image, select filters and get your style!</p>", unsafe_allow_html=True)
 
     occasion = st.selectbox("👗 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work"])
     season = st.selectbox("☀️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn"])
     age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"])
-    mood = st.selectbox("🧠 Select Your Mood", ["Happy", "Lazy", "Motivated", "Romantic", "Confident", "Chill", "Adventurous", "Classy", "Energetic", "Bold", "Elegant", "Sad", "Sporty", "Professional", "Playful"])
+    mood = st.selectbox("🧠 Mood", ["Happy", "Lazy", "Motivated", "Romantic", "Confident", "Chill","Adventurous", "Classy", "Energetic", "Bold", "Elegant", "Sad"])
     style_memory_enabled = st.toggle("🧠 Enable Style Memory", value=False)
+    uploaded_file = st.file_uploader("Upload image...", type=["jpg", "jpeg", "png"])
 
-    uploaded_file = st.file_uploader("Choose an image or take a photo...", type=["jpg", "jpeg", "png"])
-
-    if uploaded_file is not None:
+    if st.button("✨ Generate Suggestion") and uploaded_file:
         if uploaded_file.type.startswith("image/"):
-            try:
-                image = Image.open(uploaded_file).convert("RGB")
-            except Exception:
-                st.error("⚠️ Could not read the image.")
-                st.stop()
+            image = Image.open(uploaded_file).convert("RGB")
         else:
-            st.error("⚠️ Unsupported file type.")
+            st.error("Unsupported file type.")
             st.stop()
 
         image = image.resize((500, 500))
         st.image(image, caption="📸 Uploaded Image", use_container_width=True)
-
         img_bytes = io.BytesIO()
         image.save(img_bytes, format="JPEG", quality=70)
         img_bytes.seek(0)
@@ -168,54 +148,45 @@ with tab1:
                     result = response.json()
                     suggestion = result["fashion_suggestion"]
                     translated = translate_long_text(suggestion, lang_codes[language_option])
-
                     st.success("✅ AI Suggestion:")
                     st.markdown(translated, unsafe_allow_html=True)
-                    st.download_button("📥 Download Suggestion", translated, file_name="style_suggestion.txt", mime="text/plain")
 
-                    if st.button("🔊 Listen to Suggestion"):
+                    st.download_button("📥 Download Suggestion", translated, file_name="style_suggestion.txt", mime="text/plain")
+                    if st.button("🔊 Listen"):
                         tts = gTTS(text=translated, lang=lang_codes[language_option])
                         tts_bytes = io.BytesIO()
                         tts.write_to_fp(tts_bytes)
                         tts_bytes.seek(0)
                         st.audio(tts_bytes, format="audio/mp3")
-
                 else:
                     st.error(f"❌ Error {response.status_code}: {response.text}")
-
             except Exception as e:
                 st.error(f"❌ Exception: {e}")
 
         if style_memory_enabled:
             if "style_memory" not in st.session_state:
                 st.session_state.style_memory = []
-
             st.session_state.style_memory.append(image)
-
             if st.session_state.style_memory:
-                st.markdown("<h3>🧠 Style Memory (Your Uploaded Wardrobe)</h3>", unsafe_allow_html=True)
+                st.markdown("<h3>🧠 Style Memory</h3>", unsafe_allow_html=True)
                 for img in st.session_state.style_memory:
                     st.image(img, width=200)
-
-    if st.button("🔄 Refresh App"):
-        st.experimental_rerun()
 
 # ---------- Tab 2 ----------
 with tab2:
     st.markdown("<h2>✈️ Travel Fashion Assistant</h2>", unsafe_allow_html=True)
     with st.form("travel_form"):
-        destination = st.text_input("🌍 Destination", placeholder="e.g. Istanbul")
+        destination = st.text_input("🌍 Destination")
         travel_season = st.selectbox("🗓️ Season", ["Spring", "Summer", "Autumn", "Winter"])
         trip_type = st.selectbox("💼 Trip Type", ["Casual", "Business", "Wedding", "Adventure"])
         age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"])
-        submitted = st.form_submit_button("Get Travel Suggestions")
+        go = st.form_submit_button("Generate Travel Suggestion")
 
-        if submitted and destination:
+        if go and destination:
             travel_prompt = (
-                f"I'm going on a {trip_type.lower()} trip to {destination} in {travel_season}. "
-                f"I'm in my {age}. Suggest outfits and a packing list."
+                f"I'm going on a {trip_type.lower()} trip to {destination} in {travel_season}. I'm in my {age}. Suggest outfits and a packing list."
             )
-            with st.spinner("🧳 Planning your stylish trip..."):
+            with st.spinner("🧳 Planning your trip..."):
                 try:
                     response = openai.chat.completions.create(
                         model="gpt-4",
@@ -225,13 +196,11 @@ with tab2:
                         ],
                         max_tokens=400
                     )
-
                     suggestion = response.choices[0].message.content.strip()
-                    translated = GoogleTranslator(source='auto', target=lang_codes[language_option]).translate(suggestion)
-                    st.success("✅ Travel Style Suggestion:")
+                    translated = translate_long_text(suggestion, lang_codes[language_option])
+                    st.success("✅ Travel Suggestion:")
                     st.markdown(translated)
-
-                    if st.button("🔊 Listen to Travel Suggestion"):
+                    if st.button("🔊 Listen"):
                         tts = gTTS(text=translated, lang=lang_codes[language_option])
                         tts_bytes = io.BytesIO()
                         tts.write_to_fp(tts_bytes)
@@ -243,9 +212,9 @@ with tab2:
 # ---------- Tab 3 ----------
 with tab3:
     st.markdown("<h2>🧵 Fashion Trends</h2>", unsafe_allow_html=True)
-    region = st.selectbox("🌍 Select Region", ["Global", "Pakistan", "India", "USA", "Europe", "Middle East"])
+    region = st.selectbox("🌍 Region", ["Global", "Pakistan", "India", "USA", "Europe", "Middle East"])
     if st.button("✨ Show Trends"):
-        with st.spinner("Fetching fashion trends..."):
+        with st.spinner("Fetching trends..."):
             try:
                 prompt = f"What are the current fashion trends in {region} for men and women?"
                 response = openai.chat.completions.create(
@@ -257,11 +226,10 @@ with tab3:
                     max_tokens=300
                 )
                 trend_result = response.choices[0].message.content.strip()
-                translated = GoogleTranslator(source='auto', target=lang_codes[language_option]).translate(trend_result)
+                translated = translate_long_text(trend_result, lang_codes[language_option])
                 st.success("🌟 Fashion Trends:")
                 st.markdown(translated)
-
-                if st.button("🔊 Listen to Trends"):
+                if st.button("🔊 Listen"):
                     tts = gTTS(text=translated, lang=lang_codes[language_option])
                     tts_bytes = io.BytesIO()
                     tts.write_to_fp(tts_bytes)
