@@ -93,12 +93,16 @@ Upload your clothing item and get matching outfit suggestions powered by GPT-4.
 st.sidebar.markdown("---")
 st.sidebar.caption("Created by gosho1992 • [GitHub](https://github.com/Gosho1992)")
 
+if st.sidebar.button("🔁 Start Over"):
+    st.session_state.clear()
+    st.experimental_rerun()
+
 with st.sidebar.expander("ℹ️ How It Works"):
     st.markdown("""
-    1. Upload an image of your clothing item (shirt, dress, etc.).
-    2. Select Occasion, Season, Age Group, and Mood.
-    3. Press 'Generate Suggestion'.
-    4. AI will generate a personalized outfit.
+    1. 📤 Upload an image of your clothing item (shirt, dress, etc.)
+    2. 🎯 Select Occasion, Season, Age Group, and Mood
+    3. 🚀 Press 'Generate Suggestion'
+    4. 🧠 AI will generate a personalized outfit
     """)
 
 language_option = st.sidebar.selectbox("🌐 Choose Language for Suggestions", ["English", "Roman Urdu", "French", "German", "Portuguese"])
@@ -118,20 +122,18 @@ with tab1:
     st.markdown("<h1 class='center'>👕 AI Fashion Outfit Suggestions</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center;'>Upload an image, select filters and get your style!</p>", unsafe_allow_html=True)
 
-    occasion = st.selectbox("👗 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work"])
-    season = st.selectbox("☀️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn"])
+    occasion = st.selectbox("🎯 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work"])
+    season = st.selectbox("🌦️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn"])
     age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"])
-    mood = st.selectbox("🧠 Mood", ["Happy", "Lazy", "Motivated", "Romantic", "Confident", "Chill","Adventurous", "Classy", "Energetic", "Bold", "Elegant", "Sad"])
-    style_memory_enabled = st.toggle("🧠 Enable Style Memory", value=False)
-    uploaded_file = st.file_uploader("Upload image...", type=["jpg", "jpeg", "png"])
+    mood = st.selectbox("😌 Mood", ["Happy", "Lazy", "Motivated", "Romantic", "Confident", "Chill", "Adventurous", "Classy", "Energetic", "Bold", "Elegant", "Sad"])
+    style_memory_enabled = st.toggle("💾 Enable Style Memory", value=False)
+    uploaded_file = st.file_uploader("📷 Upload image...", type=["jpg", "jpeg", "png"])
 
-    if st.button("✨ Generate Suggestion") and uploaded_file:
-        if uploaded_file.type.startswith("image/"):
-            image = Image.open(uploaded_file).convert("RGB")
-        else:
-            st.error("Unsupported file type.")
-            st.stop()
+    with st.form("outfit_form"):
+        submitted = st.form_submit_button("✨ Generate Suggestion")
 
+    if submitted and uploaded_file:
+        image = Image.open(uploaded_file).convert("RGB")
         image = image.resize((500, 500))
         st.image(image, caption="📸 Uploaded Image", use_container_width=True)
         img_bytes = io.BytesIO()
@@ -177,21 +179,23 @@ with tab2:
     st.markdown("<h2>✈️ Travel Fashion Assistant</h2>", unsafe_allow_html=True)
     with st.form("travel_form"):
         destination = st.text_input("🌍 Destination")
-        travel_season = st.selectbox("🗓️ Season", ["Spring", "Summer", "Autumn", "Winter"])
-        trip_type = st.selectbox("💼 Trip Type", ["Casual", "Business", "Wedding", "Adventure"])
+        travel_season = st.selectbox("📅 Season", ["Spring", "Summer", "Autumn", "Winter"])
+        trip_type = st.selectbox("🧳 Trip Type", ["Casual", "Business", "Wedding", "Adventure"])
         age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"])
-        go = st.form_submit_button("Generate Travel Suggestion")
+        go = st.form_submit_button("🌟 Generate Travel Suggestion")
 
         if go and destination:
             travel_prompt = (
-                f"I'm going on a {trip_type.lower()} trip to {destination} in {travel_season}. I'm in my {age}. Suggest outfits and a packing list."
+                f"You're a travel fashion expert who knows global and cultural style.\n"
+                f"I'm traveling to {destination} during {travel_season}, for a {trip_type.lower()} trip. I'm in my {age}.\n"
+                f"Suggest fashionable outfits, keeping cultural preferences and weather in mind."
             )
-            with st.spinner("🧳 Planning your trip..."):
+            with st.spinner("Generating travel style..."):
                 try:
                     response = openai.chat.completions.create(
                         model="gpt-4",
                         messages=[
-                            {"role": "system", "content": "You are a travel fashion stylist."},
+                            {"role": "system", "content": "You are a travel fashion stylist who knows worldwide fashion and cultural norms."},
                             {"role": "user", "content": travel_prompt}
                         ],
                         max_tokens=400
@@ -214,13 +218,16 @@ with tab3:
     st.markdown("<h2>🧵 Fashion Trends</h2>", unsafe_allow_html=True)
     region = st.selectbox("🌍 Region", ["Global", "Pakistan", "India", "USA", "Europe", "Middle East"])
     if st.button("✨ Show Trends"):
-        with st.spinner("Fetching trends..."):
+        with st.spinner("Fetching regional trends..."):
             try:
-                prompt = f"What are the current fashion trends in {region} for men and women?"
+                prompt = (
+                    f"You're a fashion trend expert who knows recent style waves and cultural fashion norms.\n"
+                    f"What are the current trending styles in {region}? Summarize it clearly for both men and women."
+                )
                 response = openai.chat.completions.create(
                     model="gpt-4",
                     messages=[
-                        {"role": "system", "content": "You are a global fashion expert."},
+                        {"role": "system", "content": "You are a global fashion trend expert."},
                         {"role": "user", "content": prompt}
                     ],
                     max_tokens=300
