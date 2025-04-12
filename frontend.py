@@ -121,9 +121,9 @@ with tab3:
 
     if st.button("📊 Show Trends"):
         trend_prompt = (
-            f"You're a fashion trend analyst with cultural insight.
+            f"""You're a fashion trend analyst with cultural insight.
             What are the top style trends in {region} for men and women?
-            Keep it modern, separated by gender, and well structured."
+            Keep it modern, separated by gender, and well structured."""
         )
 
         with st.spinner("Fetching trends for you..."):
