@@ -361,19 +361,19 @@ with tab3:
             st.success(f"🔥 Current Trends in {region}")
             
             if "Women:" in translated and "Men:" in translated:
-                women_trends, men_trends = translated.split("Men:")
-                st.subheader("👩 Women's Trends")
-                for line in women_trends.replace("Women:", "").strip().split('\n'):
-                    if line.strip():
-                        st.markdown(f"<div class='trend-item'>✨ {line.strip()}</div>", unsafe_allow_html=True)
-                
-                st.subheader("👨 Men's Trends")
-                for line in men_trends.strip().split('\n'):
-                    if line.strip():
-                        st.markdown(f"<div class='trend-item'>✨ {line.strip()}</div>", unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 10px;">
-                {format_text_block(translated)}
-                </div>
-                """, unsafe_allow_html=True)
+    try:
+        women_trends, men_trends = translated.split("Men:")
+        st.subheader("👩 Women's Trends")
+        for line in women_trends.replace("Women:", "").strip().split('\n'):
+            if line.strip():
+                st.markdown(f"<div class='trend-item'>✨ {line.strip()}</div>", unsafe_allow_html=True)
+
+        st.subheader("👨 Men's Trends")
+        for line in men_trends.strip().split('\n'):
+            if line.strip():
+                st.markdown(f"<div class='trend-item'>✨ {line.strip()}</div>", unsafe_allow_html=True)
+    except Exception as e:
+        st.warning("⚠️ Could not split content into men/women sections.")
+        st.markdown(f"<div class='trend-item'>{translated}</div>", unsafe_allow_html=True)
+else:
+    st.markdown(f"<div class='trend-item'>{translated}</div>", unsafe_allow_html=True)
