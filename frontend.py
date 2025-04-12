@@ -7,12 +7,13 @@ from deep_translator import GoogleTranslator
 import io
 import time
 from textwrap import wrap
+import re
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 st.set_page_config(page_title="StyleSync", layout="wide")
 
-# ---------- Helper for Long Translations ----------
+# ---------- Helper for Long Translations and Formatting ----------
 def translate_long_text(text, target_lang):
     chunks = wrap(text, width=4500)
     translated_chunks = [
@@ -21,10 +22,19 @@ def translate_long_text(text, target_lang):
     ]
     return "\n\n".join(translated_chunks)
 
-# ---------- Welcome Splash (Once per session) ----------
+def format_text_to_paragraphs(text):
+    bullets = re.split(r'(\d+\.\s+)', text)
+    formatted = ""
+    for i in range(1, len(bullets), 2):
+        formatted += f"\n\n**{bullets[i].strip()}**{bullets[i+1].strip()}"
+    if not formatted:
+        paragraphs = re.split(r'(?<=[.!?])\s+', text)
+        formatted = "\n\n".join(paragraphs)
+    return formatted
+
+# ---------- Welcome Splash ----------
 if "show_welcome" not in st.session_state:
     st.session_state.show_welcome = True
-
 if st.session_state.show_welcome:
     st.markdown("""
         <div style='background: linear-gradient(to right, #fbd3e9, #bb377d);
@@ -43,76 +53,32 @@ if st.session_state.show_welcome:
 st.markdown("""
     <style>
         .stApp {
-            background: linear-gradient(45deg, 
-                #ff9a9e, #fad0c4, #fbc2eb, #a18cd1, 
-                #fbc2eb, #ff9a9e, #fbc2eb, #a1c4fd, 
-                #c2e9fb, #d4fc79, #96e6a1);
-            background-size: 200% 200%;
-            animation: rainbow 10s ease infinite;
-            padding: 2rem;
+            background: linear-gradient(45deg, #ff9a9e, #fad0c4, #fbc2eb, #a18cd1, #fbc2eb, #ff9a9e, #fbc2eb, #a1c4fd, #c2e9fb, #d4fc79, #96e6a1);
+            background-size: 200% 200%; animation: rainbow 10s ease infinite; padding: 2rem;
         }
-
         @keyframes rainbow {
-            0% {background-position: 0% 50%;}
-            50% {background-position: 100% 50%;}
-            100% {background-position: 0% 50%;}
+            0% {background-position: 0% 50%;} 50% {background-position: 100% 50%;} 100% {background-position: 0% 50%;}
         }
-
-        .stButton>button {
-            background-color: #0066cc;
-            color: white;
-            padding: 0.5rem 1.5rem;
-            border-radius: 8px;
-        }
-
+        .stButton>button { background-color: #0066cc; color: white; padding: 0.5rem 1.5rem; border-radius: 8px; }
         .stMarkdown, .stImage {
-            background-color: #ffffff;
-            padding: 1rem;
-            border-radius: 10px;
-            box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.05);
+            background-color: #ffffff; padding: 1rem; border-radius: 10px; box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.05);
         }
-
-        h1.center {
-            text-align: center;
-            font-size: 2.2rem;
-        }
-
-        .tts-button {
-            margin-top: 10px;
-        }
+        h1.center { text-align: center; font-size: 2.2rem; }
     </style>
 """, unsafe_allow_html=True)
 
 # ---------- Sidebar ----------
 st.sidebar.image("https://i.imgur.com/y0ywLko.jpeg", width=100)
 st.sidebar.title("👗 StyleSync AI")
-st.sidebar.markdown("""
-Your AI-powered fashion assistant 👚  
-Upload your clothing item and get matching outfit suggestions powered by GPT-4.
-""")
+st.sidebar.markdown("""Your AI-powered fashion assistant 👚\nUpload your clothing item and get matching outfit suggestions powered by GPT-4.""")
 st.sidebar.markdown("---")
 st.sidebar.caption("Created by gosho1992 • [GitHub](https://github.com/Gosho1992)")
-
 if st.sidebar.button("🔁 Start Over"):
     st.session_state.clear()
     st.rerun()
 
-with st.sidebar.expander("ℹ️ How It Works"):
-    st.markdown("""
-    1. 📄 Upload an image of your clothing item (shirt, dress, etc.)
-    2. 🌟 Select Occasion, Season, Age Group, and Mood
-    3. 🚀 Press 'Generate Suggestion'
-    4. 🧠 AI will generate a personalized outfit
-    """)
-
 language_option = st.sidebar.selectbox("🌐 Choose Language for Suggestions", ["English", "Roman Urdu", "French", "German", "Portuguese"])
-lang_codes = {
-    "English": "en",
-    "Roman Urdu": "ur",
-    "French": "fr",
-    "German": "de",
-    "Portuguese": "pt"
-}
+lang_codes = {"English": "en", "Roman Urdu": "ur", "French": "fr", "German": "de", "Portuguese": "pt"}
 
 # ---------- Tabs ----------
 tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Fashion Assistant", "🧵 Fashion Trends"])
@@ -120,13 +86,11 @@ tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Fashion Ass
 # ---------- Tab 1 ----------
 with tab1:
     st.markdown("<h1 class='center'>👕 AI Fashion Outfit Suggestions</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Upload an image, select filters and get your style!</p>", unsafe_allow_html=True)
-
-    occasion = st.selectbox("🌟 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work"])
+    occasion = st.selectbox("🎯 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work"])
     season = st.selectbox("🌦️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn"])
     age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"])
     mood = st.selectbox("😌 Mood", ["Happy", "Lazy", "Motivated", "Romantic", "Confident", "Chill", "Adventurous", "Classy", "Energetic", "Bold", "Elegant", "Sad"])
-    style_memory_enabled = st.toggle("📀 Enable Style Memory", value=False)
+    style_memory_enabled = st.toggle("💾 Enable Style Memory", value=False)
     uploaded_file = st.file_uploader("📷 Upload image...", type=["jpg", "jpeg", "png"])
 
     with st.form("outfit_form"):
@@ -151,9 +115,9 @@ with tab1:
                     suggestion = result["fashion_suggestion"]
                     translated = translate_long_text(suggestion, lang_codes[language_option])
                     st.success("✅ AI Suggestion:")
-                    st.markdown(translated, unsafe_allow_html=True)
+                    st.markdown(format_text_to_paragraphs(translated), unsafe_allow_html=True)
 
-                    st.download_button("📅 Download Suggestion", translated, file_name="style_suggestion.txt", mime="text/plain")
+                    st.download_button("📥 Download Suggestion", translated, file_name="style_suggestion.txt", mime="text/plain")
                     if st.button("🔊 Listen"):
                         tts = gTTS(text=translated, lang=lang_codes[language_option])
                         tts_bytes = io.BytesIO()
@@ -179,8 +143,8 @@ with tab2:
     st.markdown("<h2>✈️ Travel Fashion Assistant</h2>", unsafe_allow_html=True)
     with st.form("travel_form"):
         destination = st.text_input("🌍 Destination")
-        travel_season = st.selectbox("🗓️ Season", ["Spring", "Summer", "Autumn", "Winter"])
-        trip_type = st.selectbox("🛫 Trip Type", ["Casual", "Business", "Wedding", "Adventure"])
+        travel_season = st.selectbox("📅 Season", ["Spring", "Summer", "Autumn", "Winter"])
+        trip_type = st.selectbox("🧳 Trip Type", ["Casual", "Business", "Wedding", "Adventure"])
         age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"])
         go = st.form_submit_button("🌟 Generate Travel Suggestion")
 
@@ -198,12 +162,12 @@ with tab2:
                             {"role": "system", "content": "You are a travel fashion stylist who knows worldwide fashion and cultural norms."},
                             {"role": "user", "content": travel_prompt}
                         ],
-                        max_tokens=400
+                        max_tokens=600
                     )
                     suggestion = response.choices[0].message.content.strip()
                     translated = translate_long_text(suggestion, lang_codes[language_option])
                     st.success("✅ Travel Suggestion:")
-                    st.markdown(translated)
+                    st.markdown(format_text_to_paragraphs(translated), unsafe_allow_html=True)
                     if st.button("🔊 Listen"):
                         tts = gTTS(text=translated, lang=lang_codes[language_option])
                         tts_bytes = io.BytesIO()
@@ -230,12 +194,12 @@ with tab3:
                         {"role": "system", "content": "You are a global fashion trend expert."},
                         {"role": "user", "content": prompt}
                     ],
-                    max_tokens=300
+                    max_tokens=500
                 )
                 trend_result = response.choices[0].message.content.strip()
                 translated = translate_long_text(trend_result, lang_codes[language_option])
                 st.success("🌟 Fashion Trends:")
-                st.markdown(translated)
+                st.markdown(format_text_to_paragraphs(translated), unsafe_allow_html=True)
                 if st.button("🔊 Listen"):
                     tts = gTTS(text=translated, lang=lang_codes[language_option])
                     tts_bytes = io.BytesIO()
