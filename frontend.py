@@ -95,12 +95,12 @@ st.sidebar.caption("Created by gosho1992 • [GitHub](https://github.com/Gosho19
 
 if st.sidebar.button("🔁 Start Over"):
     st.session_state.clear()
-    st.experimental_rerun()
+    st.rerun()
 
 with st.sidebar.expander("ℹ️ How It Works"):
     st.markdown("""
-    1. 📤 Upload an image of your clothing item (shirt, dress, etc.)
-    2. 🎯 Select Occasion, Season, Age Group, and Mood
+    1. 📄 Upload an image of your clothing item (shirt, dress, etc.)
+    2. 🌟 Select Occasion, Season, Age Group, and Mood
     3. 🚀 Press 'Generate Suggestion'
     4. 🧠 AI will generate a personalized outfit
     """)
@@ -122,11 +122,11 @@ with tab1:
     st.markdown("<h1 class='center'>👕 AI Fashion Outfit Suggestions</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center;'>Upload an image, select filters and get your style!</p>", unsafe_allow_html=True)
 
-    occasion = st.selectbox("🎯 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work"])
+    occasion = st.selectbox("🌟 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work"])
     season = st.selectbox("🌦️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn"])
     age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"])
     mood = st.selectbox("😌 Mood", ["Happy", "Lazy", "Motivated", "Romantic", "Confident", "Chill", "Adventurous", "Classy", "Energetic", "Bold", "Elegant", "Sad"])
-    style_memory_enabled = st.toggle("💾 Enable Style Memory", value=False)
+    style_memory_enabled = st.toggle("📀 Enable Style Memory", value=False)
     uploaded_file = st.file_uploader("📷 Upload image...", type=["jpg", "jpeg", "png"])
 
     with st.form("outfit_form"):
@@ -153,7 +153,7 @@ with tab1:
                     st.success("✅ AI Suggestion:")
                     st.markdown(translated, unsafe_allow_html=True)
 
-                    st.download_button("📥 Download Suggestion", translated, file_name="style_suggestion.txt", mime="text/plain")
+                    st.download_button("📅 Download Suggestion", translated, file_name="style_suggestion.txt", mime="text/plain")
                     if st.button("🔊 Listen"):
                         tts = gTTS(text=translated, lang=lang_codes[language_option])
                         tts_bytes = io.BytesIO()
@@ -179,8 +179,8 @@ with tab2:
     st.markdown("<h2>✈️ Travel Fashion Assistant</h2>", unsafe_allow_html=True)
     with st.form("travel_form"):
         destination = st.text_input("🌍 Destination")
-        travel_season = st.selectbox("📅 Season", ["Spring", "Summer", "Autumn", "Winter"])
-        trip_type = st.selectbox("🧳 Trip Type", ["Casual", "Business", "Wedding", "Adventure"])
+        travel_season = st.selectbox("🗓️ Season", ["Spring", "Summer", "Autumn", "Winter"])
+        trip_type = st.selectbox("🛫 Trip Type", ["Casual", "Business", "Wedding", "Adventure"])
         age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"])
         go = st.form_submit_button("🌟 Generate Travel Suggestion")
 
