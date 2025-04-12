@@ -240,9 +240,9 @@ lang_codes = {
 # ---------- Tabs ----------
 tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Assistant", "📊 Trends"])
 
-# ---------- Tab 1: Outfit Suggestion ----------
+# ---------- Tab 1: Outfit Suggestion (Trends-style format) ----------
 with tab1:
-    st.header("👕 AI Fashion Outfit Suggestions")
+    st.header("✨ AI Stylist Recommendations")
     col1, col2 = st.columns(2)
     with col1:
         occasion = st.selectbox("🎯 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work"], key="occasion1")
@@ -255,37 +255,54 @@ with tab1:
     
     uploaded_file = st.file_uploader("📷 Upload Clothing Image (JPEG/PNG)", type=["jpg", "jpeg", "png"])
     
-    if st.button("✨ Generate Fashion Suggestion", key="suggest1") and uploaded_file:
+    if st.button("🎨 Generate Stylist Picks", key="suggest1") and uploaded_file:
         image = Image.open(uploaded_file).convert("RGB").resize((500, 500))
-        st.image(image, caption="📸 Your Uploaded Item", use_container_width=True)
+        st.image(image, caption="🖼️ Your Uploaded Item", use_container_width=True)
         img_bytes = io.BytesIO()
         image.save(img_bytes, format="JPEG")
         img_bytes.seek(0)
         files = {'file': ('image.jpg', img_bytes, 'image/jpeg')}
-        data = {"occasion": occasion, "season": season, "age": age, "mood": mood}
+        data = {
+            "occasion": occasion,
+            "season": season,
+            "age": age,
+            "mood": mood,
+            "format_instructions": """Respond in this EXACT format:
+            👗 Outfit 1: [3-5 word description] | [key items with emojis]
+            🧥 Outfit 2: [3-5 word description] | [key items with emojis]
+            💡 Pro Tip: [brief styling advice]"""
+        }
 
-        with st.spinner("🧠 Analyzing your style and generating perfect suggestions..."):
+        with st.spinner("🎀 Curating outfits matching your vibe..."):
             response = requests.post("https://stylesync-backend-2kz6.onrender.com/upload", files=files, data=data)
             if response.status_code == 200:
                 suggestion = response.json()["fashion_suggestion"]
                 translated = translate_long_text(suggestion, lang_codes[language_option])
-                formatted = format_text_block(translated)
                 
-                st.success("🎉 Your Personalized Fashion Recommendation")
-                st.markdown(f"""
-                <div class="suggestion-card">
-                {formatted}
-                </div>
-                """, unsafe_allow_html=True)
+                st.success(f"🌟 Stylist Picks for {occasion} ({season})")
+                st.caption(f"Age: {age} | Mood: {mood}")
                 
-                # Add TTS button
-                tts_button = st.button("🔊 Listen to Suggestion")
-                if tts_button:
+                # Format with trend-item styling
+                for line in translated.split('\n'):
+                    if line.strip():
+                        emoji = line[:2] if any(e in line[:2] for e in ["👗", "🧥", "👔", "💡"]) else "✨"
+                        st.markdown(f"""
+                        <div class='trend-item' style='border-left: 3px solid {
+                            '#bb377d' if '👗' in emoji else 
+                            '#0066cc' if '👔' in emoji else 
+                            '#96e6a1'
+                        }; margin: 0.5rem 0;'>
+                            {line.strip()}
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                # TTS Button
+                if st.button("🔈 Hear These Suggestions", key="tts_btn"):
                     tts = gTTS(translated, lang=lang_codes[language_option])
                     tts.save("suggestion.mp3")
                     st.audio("suggestion.mp3")
             else:
-                st.error(f"⚠️ Error {response.status_code}: {response.text}")
+                st.error(f"⚠️ Style Emergency! Error {response.status_code}")
 
 # ---------- Tab 2: Travel Assistant (Trends-style format) ----------
 with tab2:
