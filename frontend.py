@@ -49,7 +49,7 @@ st.sidebar.markdown("Upload your clothing item and get personalized fashion advi
 
 if st.sidebar.button("🔁 Start Over"):
     st.session_state.clear()
-    st.experimental_rerun()
+    st.rerun()
 
 language_option = st.sidebar.selectbox("🌐 Choose Language", ["English", "Roman Urdu", "French", "German", "Portuguese"])
 lang_codes = {"English": "en", "Roman Urdu": "ur", "French": "fr", "German": "de", "Portuguese": "pt"}
