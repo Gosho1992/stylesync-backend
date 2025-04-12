@@ -97,9 +97,9 @@ with tab2:
 
     if submitted:
         travel_prompt = (
-            f"You're a travel stylist familiar with fashion and cultural norms.
-            I'm going to {destination} this {travel_season} for a {trip_type} trip. I'm in my {travel_age}.
-            Suggest culturally appropriate and stylish outfits." )
+            travel_prompt = f"""You're a travel stylist familiar with fashion and cultural norms.
+                            I'm traveling to {destination} during {travel_season} for a {trip_type} trip. I'm in my {age}.
+                            Suggest culturally appropriate and fashionable outfits for this region and weather.""" )
 
         with st.spinner("Compiling your wardrobe..."):
             response = openai.chat.completions.create(
