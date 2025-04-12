@@ -1,4 +1,4 @@
-# ✅ Updated frontend.py with unique keys and better formatting for all tabs
+# ✅ Final frontend.py with proper formatting for all 3 tabs
 import openai
 import streamlit as st
 import requests
@@ -22,22 +22,79 @@ def translate_long_text(text, target_lang):
     ]
     return "\n\n".join(translated_chunks)
 
-# ---------- CSS Styling ----------
+# ---------- Helper to Format Text ----------
+def format_text_block(text):
+    paragraphs = text.split("\n")
+    formatted = ""
+    for p in paragraphs:
+        if len(p.strip()) == 0:
+            continue
+        p = p.replace("**", "")
+        if any(word in p.lower() for word in ["outfit", "attire", "accessories", "daywear", "nightwear", "tips", "shoes", "summary", "jewelry", "temple", "trends"]):
+            formatted += f"\n**👉 {p.strip()}**\n\n"
+        else:
+            formatted += f"{p.strip()}\n\n"
+    return formatted
+
+# ---------- Welcome Splash (Once per session) ----------
+if "show_welcome" not in st.session_state:
+    st.session_state.show_welcome = True
+
+if st.session_state.show_welcome:
+    st.markdown("""
+        <div style='background: linear-gradient(to right, #fbd3e9, #bb377d);
+                    height:100vh; display:flex; flex-direction:column;
+                    justify-content:center; align-items:center;
+                    color: white; text-align:center;'>
+            <h1 style='font-size: 4rem;'>Welcome to StyleSync</h1>
+            <p style='font-size: 1.5rem;'>Your AI-powered clothing assistant</p>
+        </div>
+    """, unsafe_allow_html=True)
+    time.sleep(5)
+    st.session_state.show_welcome = False
+    st.rerun()
+
+
+# ---------- CSS ----------
 st.markdown("""
     <style>
         .stApp {
-            background: linear-gradient(to right, #ffecd2, #fcb69f);
-            background-size: cover;
+            background: linear-gradient(45deg, 
+                #ff9a9e, #fad0c4, #fbc2eb, #a18cd1, 
+                #fbc2eb, #ff9a9e, #fbc2eb, #a1c4fd, 
+                #c2e9fb, #d4fc79, #96e6a1);
+            background-size: 200% 200%;
+            animation: rainbow 10s ease infinite;
             padding: 2rem;
         }
+
+        @keyframes rainbow {
+            0% {background-position: 0% 50%;}
+            50% {background-position: 100% 50%;}
+            100% {background-position: 0% 50%;}
+        }
+
+        .stButton>button {
+            background-color: #0066cc;
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border-radius: 8px;
+        }
+
         .stMarkdown, .stImage {
-            background-color: #fff8f0;
+            background-color: #ffffff;
             padding: 1rem;
             border-radius: 10px;
-            box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.05);
         }
-        h1, h2, h3 {
-            color: #333;
+
+        h1.center {
+            text-align: center;
+            font-size: 2.2rem;
+        }
+
+        .tts-button {
+            margin-top: 10px;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -80,8 +137,9 @@ with tab1:
             if response.status_code == 200:
                 suggestion = response.json()["fashion_suggestion"]
                 translated = translate_long_text(suggestion, lang_codes[language_option])
+                formatted = format_text_block(translated)
                 st.success("🎨 Your AI Fashion Suggestion")
-                st.markdown(translated.replace("**", ""))
+                st.markdown(formatted)
             else:
                 st.error(f"Backend Error {response.status_code}: {response.text}")
 
@@ -96,9 +154,11 @@ with tab2:
         submitted = st.form_submit_button("🌟 Generate Travel Suggestion")
 
     if submitted:
-        travel_prompt = (f"""You're a travel stylist familiar with fashion and cultural norms.
-                            I'm traveling to {destination} during {travel_season} for a {trip_type} trip. I'm in my {age}.
-                            Suggest culturally appropriate and fashionable outfits for this region and weather.""" )
+        travel_prompt = (
+            f"You're a travel stylist familiar with fashion and cultural norms.\n"
+            f"I'm traveling to {destination} during {travel_season} for a {trip_type} trip. I'm in my {travel_age}.\n"
+            f"Suggest culturally appropriate and fashionable outfits for this region and weather."
+        )
 
         with st.spinner("Compiling your wardrobe..."):
             response = openai.chat.completions.create(
@@ -107,12 +167,13 @@ with tab2:
                     {"role": "system", "content": "You are a cultural fashion advisor."},
                     {"role": "user", "content": travel_prompt}
                 ],
-                max_tokens=500
+                max_tokens=600
             )
-            travel_result = response.choices[0].message.content.strip()
-            translated = translate_long_text(travel_result, lang_codes[language_option])
+            result = response.choices[0].message.content.strip()
+            translated = translate_long_text(result, lang_codes[language_option])
+            formatted = format_text_block(translated)
             st.success("🌴 Travel Style Tips")
-            st.markdown(translated.replace("**", ""))
+            st.markdown(formatted)
 
 # ---------- Tab 3: Fashion Trends ----------
 with tab3:
@@ -121,9 +182,9 @@ with tab3:
 
     if st.button("📊 Show Trends"):
         trend_prompt = (
-            f"""You're a fashion trend analyst with cultural insight.
-            What are the top style trends in {region} for men and women?
-            Keep it modern, separated by gender, and well structured."""
+            f"You're a fashion trend analyst with cultural insight.\n"
+            f"What are the top style trends in {region} for men and women?\n"
+            f"Keep it modern, separated by gender, and well structured."
         )
 
         with st.spinner("Fetching trends for you..."):
@@ -133,9 +194,10 @@ with tab3:
                     {"role": "system", "content": "You are a fashion trends expert with global knowledge."},
                     {"role": "user", "content": trend_prompt}
                 ],
-                max_tokens=500
+                max_tokens=600
             )
-            trend_result = response.choices[0].message.content.strip()
-            translated = translate_long_text(trend_result, lang_codes[language_option])
+            result = response.choices[0].message.content.strip()
+            translated = translate_long_text(result, lang_codes[language_option])
+            formatted = format_text_block(translated)
             st.success("🧥 Current Fashion Trends")
-            st.markdown(translated.replace("**", ""))
+            st.markdown(formatted)
