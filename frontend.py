@@ -96,8 +96,7 @@ with tab2:
         submitted = st.form_submit_button("🌟 Generate Travel Suggestion")
 
     if submitted:
-        travel_prompt = (
-            travel_prompt = f"""You're a travel stylist familiar with fashion and cultural norms.
+        travel_prompt = (f"""You're a travel stylist familiar with fashion and cultural norms.
                             I'm traveling to {destination} during {travel_season} for a {trip_type} trip. I'm in my {age}.
                             Suggest culturally appropriate and fashionable outfits for this region and weather.""" )
 
