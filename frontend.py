@@ -102,15 +102,35 @@ st.markdown("""
 # ---------- Sidebar ----------
 st.sidebar.image("https://i.imgur.com/y0ywLko.jpeg", width=100)
 st.sidebar.title("👗 StyleSync AI")
-st.sidebar.markdown("Upload your clothing item and get personalized fashion advice ✨")
+st.sidebar.markdown("""
+Your AI-powered fashion assistant 👚  
+Upload your clothing item and get matching outfit suggestions powered by GPT-4.
+""")
+st.sidebar.markdown("---")
+st.sidebar.caption("Created by gosho1992 • [GitHub](https://github.com/Gosho1992)")
 
-if st.sidebar.button("🔁 Start Over"):
-    st.session_state.clear()
-    st.rerun()
+with st.sidebar.expander("ℹ️ How It Works"):
+    st.markdown("""
+    1. Upload an image of your clothing item (shirt, dress, etc.).
+    2. Select Occasion, Season, Age Group, and Mood.
+    3. AI will generate a matching outfit suggestion based on your location.
+    4. Download or listen to your personalized suggestion!
+    """)
 
-language_option = st.sidebar.selectbox("🌐 Choose Language", ["English", "Roman Urdu", "French", "German", "Portuguese"])
-lang_codes = {"English": "en", "Roman Urdu": "ur", "French": "fr", "German": "de", "Portuguese": "pt"}
+with st.sidebar.expander("🧠 What is Style Memory?"):
+    st.markdown("""
+    Style Memory keeps track of outfits you've uploaded in the session. 
+    It helps recommend new combinations based on what you've already added.
+    """)
 
+language_option = st.sidebar.selectbox("🌐 Choose Language for Suggestions", ["English", "Roman Urdu", "French", "German", "Portuguese"])
+lang_codes = {
+    "English": "en",
+    "Roman Urdu": "ur",
+    "French": "fr",
+    "German": "de",
+    "Portuguese": "pt"
+}
 # ---------- Tabs ----------
 tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Assistant", "🧵 Trends"])
 
