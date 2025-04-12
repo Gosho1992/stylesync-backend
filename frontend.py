@@ -104,7 +104,7 @@ st.sidebar.image("https://i.imgur.com/y0ywLko.jpeg", width=100)
 st.sidebar.title("👗 StyleSync AI")
 st.sidebar.markdown("""
 Your AI-powered fashion assistant 👚  
-Upload your clothing item and get matching outfit suggestions powered by GPT-4.
+Upload your clothing item and get personalized fashion advice ✨
 """)
 st.sidebar.markdown("---")
 st.sidebar.caption("Created by gosho1992 • [GitHub](https://github.com/Gosho1992)")
