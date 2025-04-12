@@ -287,10 +287,10 @@ with tab1:
             else:
                 st.error(f"⚠️ Error {response.status_code}: {response.text}")
 
-# ---------- Tab 2: Travel Assistant ----------
+# ---------- Tab 2: Travel Assistant (Trends-style format) ----------
 with tab2:
     st.header("✈️ Travel Fashion Assistant")
-    st.markdown("Get culturally appropriate outfit suggestions for your destination")
+    st.markdown("Get **emoji-packed, concise** outfit suggestions for your destination")
     
     with st.form("travel_form"):
         col1, col2 = st.columns(2)
@@ -301,56 +301,72 @@ with tab2:
             trip_type = st.selectbox("🧳 Trip Type", ["Casual", "Business", "Wedding", "Adventure"], key="trip2")
             travel_age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"], key="age2")
         
-        submitted = st.form_submit_button("🌟 Get Travel Style Guide")
+        submitted = st.form_submit_button("🌟 Generate Trendy Travel Guide")
 
     if submitted and destination:
         travel_prompt = (
-            f"""You are a professional fashion advisor specializing in travel attire. 
-            I'm traveling to {destination} for a {trip_type} trip during {travel_season}, and I'm in my {travel_age}. 
-
-	   Please provide **ultra-practical clothing recommendations** that consider:
-	   1. **Weather** → Prioritize comfort for {travel_season} (e.g., breathable fabrics for summer, layers for winter).
-           2. **Culture** → Respect local norms (e.g., modesty requirements, religious sites).
-           3. **Trip Theme** → Match the vibe of a {trip_type} trip (e.g., business formal, beach casual).
-           4. **Age-Appropriate** → Suggest styles suitable for {travel_age}.
-
-           **Format rules**:
-           - 🔹 Use bullet points (max 8 words per line).
-           - 🔹 Separate "Essentials" and "Pro Tips".
-           - 🔹 Include emojis for visual clarity.
-           - 🔹 Be specific (e.g., "pack a wrinkle-resistant blazer" vs. "bring formal wear").
-
-           **Example structure**:
-        👗 **Women's Essentials**  
-           - Light linen dresses (heat-friendly + temple-appropriate)  
-           - Foldable sun hat ☀️  
-
-         👔 **Men's Pro Tips**  
-         - "Pack 2 polo shirts (quick-dry fabric)"  
-         - "Comfy loafers (easy airport security)"  
-          """
+            f"""You are a fashion-forward travel stylist. I'm a {travel_age} traveler going to {destination} for {trip_type} during {travel_season}.
+            
+            Give me **5 ultra-concise fashion recommendations per gender** with:
+            - 🔥 Trendy yet practical items
+            - 🌦️ Weather-appropriate fabrics
+            - 🏛️ Cultural considerations
+            - ✨ 1 emoji per line
+            - 🚫 Max 8 words per bullet
+            
+            Format EXACTLY like this:
+            Women:
+            👗 Silk midi dress (elegant + breathable)
+            🧥 Light trench coat (spring-ready)
+            
+            Men:
+            👔 Linen shirt (wrinkle-resistant)
+            🧳 Compact duffel (airline-approved)
+            """
         )
 
-        with st.spinner("✈️ Researching fashion norms for {destination}..."):
+        with st.spinner(f"✈️ Curating {destination}'s trendiest travel looks..."):
             response = openai.chat.completions.create(
                 model="gpt-4",
                 messages=[
-                    {"role": "system", "content": "You are a concise travel fashion advisor. Use bullet points, emojis, and keep suggestions very brief."},
+                    {"role": "system", "content": "You are a fashion editor for Condé Nast Traveler. Respond ONLY in the requested format."},
                     {"role": "user", "content": travel_prompt}
                 ],
-                max_tokens=600
+                max_tokens=400
             )
             result = response.choices[0].message.content.strip()
-            translated = translate_long_text(result, lang_codes[language_option])
-            formatted = format_text_block(translated)
             
-            st.success(f"🧳 {destination} Travel Style Guide")
-            st.markdown(f"""
-            <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 10px;">
-            {formatted}
-            </div>
-            """, unsafe_allow_html=True)
+            st.success(f"🧿 {destination} Travel Style Guide")
+            st.caption(f"Perfect for {trip_type} trips during {travel_season} | Age: {travel_age}")
 
+            if "Women:" in result and "Men:" in result:
+                women_trends, men_trends = result.split("Men:")
+                
+                # Women's Section
+                st.subheader("👩 Women's Picks")
+                for line in women_trends.replace("Women:", "").strip().split('\n'):
+                    if line.strip():
+                        st.markdown(f"""
+                        <div class='trend-item' style='border-left: 3px solid #fbc2eb;'>
+                        {line.strip()}
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                # Men's Section
+                st.subheader("👨 Men's Picks")
+                for line in men_trends.strip().split('\n'):
+                    if line.strip():
+                        st.markdown(f"""
+                        <div class='trend-item' style='border-left: 3px solid #a1c4fd;'>
+                        {line.strip()}
+                        </div>
+                        """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div class='trend-item'>
+                {result}
+                </div>
+                """, unsafe_allow_html=True)
 # ---------- Tab 3: Fashion Trends ----------
 with tab3:
     st.header("🧵 Fashion Trends")
