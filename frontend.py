@@ -305,9 +305,30 @@ with tab2:
 
     if submitted and destination:
         travel_prompt = (
-            f"Provide concise, bullet-point fashion advice for traveling to {destination} during {travel_season}.\n"
-            f"Focus on: 1) Cultural appropriateness 2) Weather suitability 3) {trip_type} attire 4) Key items to pack.\n"
-            f"Separate suggestions for men and women. Keep each point under 10 words. Include emojis."
+            f"""You are a professional fashion advisor specializing in travel attire. 
+            I'm traveling to {destination} for a {trip_type} trip during {travel_season}, and I'm in my {travel_age}. 
+
+	   Please provide **ultra-practical clothing recommendations** that consider:
+	   1. **Weather** → Prioritize comfort for {travel_season} (e.g., breathable fabrics for summer, layers for winter).
+           2. **Culture** → Respect local norms (e.g., modesty requirements, religious sites).
+           3. **Trip Theme** → Match the vibe of a {trip_type} trip (e.g., business formal, beach casual).
+           4. **Age-Appropriate** → Suggest styles suitable for {travel_age}.
+
+           **Format rules**:
+           - 🔹 Use bullet points (max 8 words per line).
+           - 🔹 Separate "Essentials" and "Pro Tips".
+           - 🔹 Include emojis for visual clarity.
+           - 🔹 Be specific (e.g., "pack a wrinkle-resistant blazer" vs. "bring formal wear").
+
+           **Example structure**:
+        👗 **Women's Essentials**  
+           - Light linen dresses (heat-friendly + temple-appropriate)  
+           - Foldable sun hat ☀️  
+
+         👔 **Men's Pro Tips**  
+         - "Pack 2 polo shirts (quick-dry fabric)"  
+         - "Comfy loafers (easy airport security)"  
+          """
         )
 
         with st.spinner("✈️ Researching fashion norms for {destination}..."):
