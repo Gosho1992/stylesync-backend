@@ -240,69 +240,121 @@ lang_codes = {
 # ---------- Tabs ----------
 tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Assistant", "📊 Trends"])
 
-# ---------- Tab 1: Outfit Suggestion (Trends-style format) ----------
+# ---------- Tab 1: Outfit Suggestion (Premium Stylist Experience) ----------
 with tab1:
-    st.header("✨ AI Stylist Recommendations")
-    col1, col2 = st.columns(2)
-    with col1:
-        occasion = st.selectbox("🎯 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work"], key="occasion1")
-        season = st.selectbox("🌦️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn"], key="season1")
-    with col2:
-        age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"], key="age1")
-        mood = st.selectbox("😌 Mood", ["Happy", "Lazy", "Motivated", "Romantic", "Confident", 
-                                      "Chill", "Adventurous", "Classy", "Energetic", "Bold", 
-                                      "Elegant", "Sad"], key="mood1")
+    st.header("🎀 Personal Stylist Session")
     
-    uploaded_file = st.file_uploader("📷 Upload Clothing Image (JPEG/PNG)", type=["jpg", "jpeg", "png"])
+    # Fashion Filters
+    with st.expander("✨ Style Preferences", expanded=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            occasion = st.selectbox("🎯 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work"], 
+                                  key="occasion1", help="Where will you wear this?")
+            season = st.selectbox("🌦️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn"], 
+                                key="season1")
+        with col2:
+            age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"], 
+                              key="age1")
+            mood = st.selectbox("😌 Mood", ["Happy", "Lazy", "Motivated", "Romantic", "Confident", 
+                                          "Chill", "Adventurous", "Classy", "Energetic", "Bold", 
+                                          "Elegant", "Sad"], 
+                              key="mood1", help="Your current fashion vibe")
     
-    if st.button("🎨 Generate Stylist Picks", key="suggest1") and uploaded_file:
-        image = Image.open(uploaded_file).convert("RGB").resize((500, 500))
-        st.image(image, caption="🖼️ Your Uploaded Item", use_container_width=True)
-        img_bytes = io.BytesIO()
-        image.save(img_bytes, format="JPEG")
-        img_bytes.seek(0)
-        files = {'file': ('image.jpg', img_bytes, 'image/jpeg')}
-        data = {
-            "occasion": occasion,
-            "season": season,
-            "age": age,
-            "mood": mood,
-            "format_instructions": """Respond in this EXACT format:
-            👗 Outfit 1: [3-5 word description] | [key items with emojis]
-            🧥 Outfit 2: [3-5 word description] | [key items with emojis]
-            💡 Pro Tip: [brief styling advice]"""
-        }
+    # Image Upload with Preview
+    uploaded_file = st.file_uploader("📸 Upload Your Clothing Item", 
+                                    type=["jpg", "jpeg", "png"],
+                                    help="For best results, use well-lit photos on neutral background")
+    
+    if uploaded_file:
+        st.image(Image.open(uploaded_file), 
+                caption="🖼️ Your Style Starting Point", 
+                width=300)
+        
+        if st.button("🌟 Get My Custom Lookbook", 
+                    type="primary",
+                    use_container_width=True):
+            
+            # Prepare API data with strict formatting rules
+            data = {
+                "occasion": occasion,
+                "season": season,
+                "age": age,
+                "mood": mood,
+                "format_instructions": """Respond EXACTLY in this structure:
+                ### OUTFIT CONCEPT 1
+                ✨ [2-3 word theme] 
+                👗 **Top**: [item + emoji]  
+                👖 **Bottom**: [item + emoji]  
+                👟 **Shoes**: [item + emoji]  
+                💎 **Accent**: [item + emoji]  
+                🌟 **Why It Works**: [10-12 words]  
 
-        with st.spinner("🎀 Curating outfits matching your vibe..."):
-            response = requests.post("https://stylesync-backend-2kz6.onrender.com/upload", files=files, data=data)
-            if response.status_code == 200:
-                suggestion = response.json()["fashion_suggestion"]
-                translated = translate_long_text(suggestion, lang_codes[language_option])
+                ### OUTFIT CONCEPT 2
+                ✨ [2-3 word theme]  
+                [Same structure as above]  
+
+                💡 **Pro Stylist Tip**: [15 words max]"""
+            }
+
+            with st.status("🎨 Designing your personalized lookbook...", expanded=True) as status:
+                # Call your API
+                response = requests.post(
+                    "https://stylesync-backend-2kz6.onrender.com/upload",
+                    files={'file': ('image.jpg', uploaded_file.getvalue(), 'image/jpeg')},
+                    data=data
+                )
                 
-                st.success(f"🌟 Stylist Picks for {occasion} ({season})")
-                st.caption(f"Age: {age} | Mood: {mood}")
+                if response.status_code == 200:
+                    suggestion = response.json()["fashion_suggestion"]
+                    status.update(label="🎉 Lookbook Ready!", state="complete", expanded=False)
+                    
+                    # Display in elegant cards
+                    st.subheader(f"👑 {occasion} Lookbook • {mood.capitalize()} Mood")
+                    st.caption(f"Perfect for {age} | {season} appropriate")
+                    
+                    # Split into outfit concepts
+                    for section in suggestion.split('### ')[1:]:
+                        if "OUTFIT CONCEPT" in section:
+                            header, *items = section.split('\n')
+                            with st.container(border=True):
+                                st.markdown(f"#### {header.strip()}")
+                                for item in items:
+                                    if item.strip() and ":" in item:
+                                        icon = {
+                                            "Top": "👚",
+                                            "Bottom": "👖", 
+                                            "Shoes": "👟",
+                                            "Accent": "💎",
+                                            "Why": "🌟"
+                                        }.get(item.split(':')[0].strip(), "✨")
+                                        st.markdown(f"{icon} {item.strip()}")
+                        elif "Pro Stylist Tip" in section:
+                            st.divider()
+                            st.markdown(f"💎 **Pro Tip**: *{section.split(':')[-1].strip()}*")
+                    
+                    # Audio version
+                    with st.expander("🔊 Listen to Your Stylist"):
+                        tts = gTTS(suggestion, lang=lang_codes[language_option])
+                        tts.save("lookbook.mp3")
+                        st.audio("lookbook.mp3")
                 
-                # Format with trend-item styling
-                for line in translated.split('\n'):
-                    if line.strip():
-                        emoji = line[:2] if any(e in line[:2] for e in ["👗", "🧥", "👔", "💡"]) else "✨"
-                        st.markdown(f"""
-                        <div class='trend-item' style='border-left: 3px solid {
-                            '#bb377d' if '👗' in emoji else 
-                            '#0066cc' if '👔' in emoji else 
-                            '#96e6a1'
-                        }; margin: 0.5rem 0;'>
-                            {line.strip()}
-                        </div>
-                        """, unsafe_allow_html=True)
-                
-                # TTS Button
-                if st.button("🔈 Hear These Suggestions", key="tts_btn"):
-                    tts = gTTS(translated, lang=lang_codes[language_option])
-                    tts.save("suggestion.mp3")
-                    st.audio("suggestion.mp3")
-            else:
-                st.error(f"⚠️ Style Emergency! Error {response.status_code}")
+                else:
+                    st.error("🚨 Our stylists are busy! Try again in a moment.")
+
+# CSS for the lookbook (add to your existing styles)
+st.markdown("""
+<style>
+    div[data-testid="stExpander"] div[role="button"] p {
+        font-size: 1.1rem;
+        font-weight: 500;
+    }
+    div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlockBorderWrapper"] {
+        border-radius: 12px;
+        padding: 1.5rem;
+        background: rgba(255,255,255,0.95);
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # ---------- Tab 2: Travel Assistant (Trends-style format) ----------
 with tab2:
