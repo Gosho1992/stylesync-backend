@@ -240,16 +240,16 @@ lang_codes = {
 # ---------- Tabs ----------
 tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Assistant", "📊 Trends"])
 
-# ---------- Tab 1: Fashion Genie (Ultimate Stylist Experience) ----------
+# ---------- Tab 1: Outfit Suggestion (Fixed & Refined) ----------
 with tab1:
-    st.header("🧞‍♀️ Your Personal Fashion Genie")
+    st.header("👗 Personal Style Assistant")
     
-    # Magic Wardrobe Controls
-    with st.expander("✨ Set Your Style Spell", expanded=True):
-        col1, col2, col3 = st.columns(3)
+    # Style Preferences
+    with st.expander("✨ Set Your Preferences", expanded=True):
+        col1, col2 = st.columns(2)
         with col1:
             occasion = st.selectbox("🎯 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work"], 
-                                 key="occasion1", help="Where will you wear this?")
+                                 key="occasion1")
             season = st.selectbox("🌦️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn"], 
                                key="season1")
         with col2:
@@ -258,121 +258,102 @@ with tab1:
             mood = st.selectbox("😌 Mood", ["Happy", "Lazy", "Motivated", "Romantic", "Confident", 
                                          "Chill", "Adventurous", "Classy", "Energetic", "Bold", 
                                          "Elegant", "Sad"], 
-                             key="mood1", help="Your current fashion vibe")
-        with col3:
-            intensity = st.slider("💥 Boldness Level", 1, 5, 3, 
-                                help="How adventurous are you feeling?")
-            color_pref = st.color_picker("🎨 Favorite Color", "#FF6B6B")
+                             key="mood1")
 
-    # Enchanted Image Upload
-    uploaded_file = st.file_uploader("🔮 Upload Your Style Canvas", type=["jpg", "jpeg", "png"],
-                                   help="For magical results, use clear photos on plain backgrounds")
+    # Image Upload
+    uploaded_file = st.file_uploader("📸 Upload Your Clothing Item", type=["jpg", "jpeg", "png"])
     
     if uploaded_file:
-        # Crystal Ball Preview
-        with st.expander("🔍 Your Style Vision", expanded=True):
-            st.image(Image.open(uploaded_file), 
-                    caption="✨ The Genie sees your fashion potential!", 
-                    width=350)
+        st.image(Image.open(uploaded_file), caption="🖼️ Your Style Foundation", width=300)
 
-        if st.button("🧞‍♀️ Conjure My Style Spell", 
-                    type="primary", 
-                    use_container_width=True,
-                    help="Let the fashion magic begin!"):
-            
-            # Magic API Request
+        if st.button("✨ Get Style Recommendations", type="primary", use_container_width=True):
+            # Prepare request data with robust formatting instructions
             data = {
                 "occasion": occasion,
                 "season": season,
                 "age": age,
                 "mood": mood,
-                "intensity": intensity,
-                "color_pref": color_pref,
-                "format_instructions": """Respond EXACTLY like this:
-
-✨✨ [2-WORD STYLE SPELL NAME] ✨✨
-(Example: "MIDNIGHT ELEGANCE" or "SUNSHINE REBEL")
-
-🌈 **Color Magic**: [primary color palette]  
-👑 **Style Crown**: [hat/headpiece suggestion]  
-👚 **Enchanted Top**: [top + magical property]  
-👖 **Mystical Bottom**: [bottom + special feature]  
-🧥 **Arcane Outerwear**: [jacket/cardigan suggestion]  
-👠 **Sorcerer's Shoes**: [footwear with power]  
-💍 **Charmed Accents**: [3 magical accessories]  
-⚡ **Spell Effect**: [what this outfit will do for you]  
-
-💫 **Alternate Reality Version**: [wild creative variation]  
-
-📜 **Fashion Prophecy**: [1-line style fortune]"""
+                "format_instructions": """Respond in this EXACT format:
+                
+                ## Outfit 1: [Creative Name]
+                - 👚 Top: [Description with emoji]
+                - 👖 Bottom: [Description with emoji]
+               - 👟 Shoes: [Description with emoji]
+                - 🧥 Outerwear: [Description with emoji] (if needed)
+                - 💎 Accents: [1-3 accessories with emojis]
+                - ✨ Why It Works: [Brief benefit statement]
+                
+                ## Outfit 2: [Creative Name]
+                [Same structure as above]
+                
+                💡 Style Tip: [One practical tip]"""
             }
 
-            with st.status("🔮 Consulting the Fashion Oracles...", expanded=True):
-                # Crystal Ball Loading Animation
-                with st.empty():
-                    for _ in range(3):
-                        st.markdown("<div style='text-align:center'>✨⚡✨</div>", unsafe_allow_html=True)
-                        time.sleep(0.3)
-                
-                response = requests.post(
-                    "https://stylesync-backend-2kz6.onrender.com/upload",
-                    files={'file': ('image.jpg', uploaded_file.getvalue(), 'image/jpeg')},
-                    data=data
-                )
+            with st.spinner("🎨 Curating your perfect looks..."):
+                try:
+                    response = requests.post(
+                        "https://stylesync-backend-2kz6.onrender.com/upload",
+                        files={'file': ('image.jpg', uploaded_file.getvalue(), 'image/jpeg')},
+                        data=data,
+                        timeout=10
+                    )
 
-                if response.status_code == 200:
-                    suggestion = response.json()["fashion_suggestion"]
-                    
-                    # Magical Display
-                    st.balloons()
-                    st.success("🎇 Your Style Destiny Awaits!")
-                    
-                    # Enchanted Scroll Display
-                    with st.container():
-                        st.markdown("""
-                        <style>
-                            .magic-scroll {
-                                background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-                                border-radius: 15px;
-                                padding: 2rem;
-                                box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-                                border-left: 5px solid #9c27b0;
-                            }
-                            .spell-name {
-                                font-family: 'Papyrus', fantasy;
-                                text-align: center;
-                                color: #6a1b9a;
-                                margin-bottom: 1.5rem;
-                            }
-                        </style>
-                        """, unsafe_allow_html=True)
+                    if response.status_code == 200:
+                        suggestion = response.json().get("fashion_suggestion", "")
                         
-                        st.markdown(f"""
-                        <div class='magic-scroll'>
-                            <h3 class='spell-name'>{suggestion.split('✨✨')[1].split('✨✨')[0].strip()}</h3>
-                            {suggestion.split('✨✨')[1].split('✨✨')[1]}
-                        </div>
-                        """, unsafe_allow_html=True)
+                        if not suggestion:
+                            st.warning("🔄 Got empty suggestions. Please try again.")
+                        else:
+                            st.success("✅ Your Personalized Style Guide")
+                            st.caption(f"For {occasion} occasions | {mood} mood | {age}")
+                            
+                            # Process and display suggestions safely
+                            if "## Outfit" in suggestion:
+                                for outfit_section in suggestion.split('## ')[1:]:
+                                    if "Outfit" in outfit_section:
+                                        title, *items = outfit_section.split('\n')
+                                        with st.container(border=True):
+                                            st.subheader(f"🌟 {title.split(':')[1].strip()}")
+                                            for item in items:
+                                                if item.strip() and any(emoji in item for emoji in ["👚", "👖", "👟", "🧥", "💎", "✨"]):
+                                                    st.markdown(f"- {item.strip()}")
+                                
+                                # Display style tip if present
+                                if "💡 Style Tip:" in suggestion:
+                                    st.divider()
+                                    st.info(f"💡 **Expert Tip**: {suggestion.split('💡 Style Tip:')[-1].strip()}")
+                            else:
+                                st.warning("⚠️ Showing raw suggestions:")
+                                st.markdown(suggestion)
+                            
+                            # Audio version
+                            if st.button("🔊 Listen to Recommendations"):
+                                tts = gTTS(suggestion, lang=lang_codes[language_option])
+                                audio_file = BytesIO()
+                                tts.write_to_fp(audio_file)
+                                audio_file.seek(0)
+                                st.audio(audio_file, format="audio/mp3")
                     
-                    # Magical Features
-                    st.subheader("🧙‍♀️ Style Wizardry Tools")
-                    cols = st.columns(2)
-                    with cols[0]:
-                        if st.button("🔮 See Alternate Reality Version"):
-                            st.markdown(f"""
-                            <div class='magic-scroll' style='background:#f0e6ff'>
-                                {suggestion.split('💫 **Alternate Reality Version**:')[1].split('📜')[0]}
-                            </div>
-                            """, unsafe_allow_html=True)
-                    with cols[1]:
-                        if st.button("📜 Hear Your Fashion Prophecy"):
-                            prophecy = suggestion.split('📜 **Fashion Prophecy**:')[1]
-                            tts = gTTS(prophecy, lang=lang_codes[language_option])
-                            tts.save("prophecy.mp3")
-                            st.audio("prophecy.mp3")
-                
-                else:
-                    st.error("🧪 The fashion potion exploded! Try again later.")
+                    else:
+                        st.error(f"❌ Error {response.status_code}: Please try again later")
+
+                except Exception as e:
+                    st.error(f"⚠️ Connection issue: {str(e)}")
+
+# Add some custom CSS
+st.markdown("""
+<style>
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        border-radius: 10px;
+        padding: 1rem;
+        background: rgba(255,255,255,0.9);
+    }
+    div[data-testid="stExpander"] div[role="button"] p {
+        font-weight: 500;
+        color: #6a1b9a;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 
 # ---------- Tab 2: Travel Assistant (Trends-style format) ----------
