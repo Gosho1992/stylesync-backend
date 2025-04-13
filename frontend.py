@@ -240,7 +240,7 @@ lang_codes = {
 # ---------- Tabs ----------
 tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Assistant", "📊 Trends"])
 
-# ---------- Tab 1: Outfit Suggestion (Premium Stylist Experience) ----------
+# ---------- Tab 1: Outfit Suggestion (Fixed Version) ----------
 with tab1:
     st.header("🎀 Personal Stylist Session")
     
@@ -296,7 +296,7 @@ with tab1:
                 💡 **Pro Stylist Tip**: [15 words max]"""
             }
 
-            with st.status("🎨 Designing your personalized lookbook...", expanded=True) as status:
+            with st.spinner("🎨 Designing your personalized lookbook..."):
                 # Call your API
                 response = requests.post(
                     "https://stylesync-backend-2kz6.onrender.com/upload",
@@ -306,9 +306,9 @@ with tab1:
                 
                 if response.status_code == 200:
                     suggestion = response.json()["fashion_suggestion"]
-                    status.update(label="🎉 Lookbook Ready!", state="complete", expanded=False)
                     
-                    # Display in elegant cards
+                    # Display section
+                    st.success("🎉 Lookbook Ready!")
                     st.subheader(f"👑 {occasion} Lookbook • {mood.capitalize()} Mood")
                     st.caption(f"Perfect for {age} | {season} appropriate")
                     
@@ -316,7 +316,7 @@ with tab1:
                     for section in suggestion.split('### ')[1:]:
                         if "OUTFIT CONCEPT" in section:
                             header, *items = section.split('\n')
-                            with st.container(border=True):
+                            with st.container():
                                 st.markdown(f"#### {header.strip()}")
                                 for item in items:
                                     if item.strip() and ":" in item:
@@ -332,29 +332,15 @@ with tab1:
                             st.divider()
                             st.markdown(f"💎 **Pro Tip**: *{section.split(':')[-1].strip()}*")
                     
-                    # Audio version
-                    with st.expander("🔊 Listen to Your Stylist"):
+                    # Audio version - moved outside container
+                    tts_button = st.button("🔊 Listen to Your Stylist")
+                    if tts_button:
                         tts = gTTS(suggestion, lang=lang_codes[language_option])
                         tts.save("lookbook.mp3")
                         st.audio("lookbook.mp3")
                 
                 else:
                     st.error("🚨 Our stylists are busy! Try again in a moment.")
-
-# CSS for the lookbook (add to your existing styles)
-st.markdown("""
-<style>
-    div[data-testid="stExpander"] div[role="button"] p {
-        font-size: 1.1rem;
-        font-weight: 500;
-    }
-    div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlockBorderWrapper"] {
-        border-radius: 12px;
-        padding: 1.5rem;
-        background: rgba(255,255,255,0.95);
-    }
-</style>
-""", unsafe_allow_html=True)
 
 # ---------- Tab 2: Travel Assistant (Trends-style format) ----------
 with tab2:
