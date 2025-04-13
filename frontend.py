@@ -240,7 +240,7 @@ lang_codes = {
 # ---------- Tabs ----------
 tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Assistant", "📊 Trends"])
 
-# ---------- Tab 1: Outfit Suggestion (Fixed Version) ----------
+# ---------- Tab 1: Outfit Suggestion (Final Version) ----------
 with tab1:
     st.header("🎀 Personal Stylist Session")
     
@@ -248,99 +248,96 @@ with tab1:
     with st.expander("✨ Style Preferences", expanded=True):
         col1, col2 = st.columns(2)
         with col1:
-            occasion = st.selectbox("🎯 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work"], 
-                                  key="occasion1", help="Where will you wear this?")
-            season = st.selectbox("🌦️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn"], 
-                                key="season1")
+            occasion = st.selectbox("🎯 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work"], key="occasion1")
+            season = st.selectbox("🌦️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn"], key="season1")
         with col2:
-            age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"], 
-                              key="age1")
-            mood = st.selectbox("😌 Mood", ["Happy", "Lazy", "Motivated", "Romantic", "Confident", 
-                                          "Chill", "Adventurous", "Classy", "Energetic", "Bold", 
-                                          "Elegant", "Sad"], 
-                              key="mood1", help="Your current fashion vibe")
-    
-    # Image Upload with Preview
-    uploaded_file = st.file_uploader("📸 Upload Your Clothing Item", 
-                                    type=["jpg", "jpeg", "png"],
-                                    help="For best results, use well-lit photos on neutral background")
+            age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"], key="age1")
+            mood = st.selectbox("😌 Mood", ["Happy", "Lazy", "Motivated", "Romantic", "Confident", "Chill", 
+                                            "Adventurous", "Classy", "Energetic", "Bold", "Elegant", "Sad"], key="mood1")
+
+    # Image Upload
+    uploaded_file = st.file_uploader("📸 Upload Your Clothing Item", type=["jpg", "jpeg", "png"])
     
     if uploaded_file:
-        st.image(Image.open(uploaded_file), 
-                caption="🖼️ Your Style Starting Point", 
-                width=300)
-        
-        if st.button("🌟 Get My Custom Lookbook", 
-                    type="primary",
-                    use_container_width=True):
-            
-            # Prepare API data with strict formatting rules
+        st.image(Image.open(uploaded_file), caption="🖼️ Your Style Starting Point", width=300)
+
+        if st.button("🌟 Get My Custom Lookbook", type="primary", use_container_width=True):
+            # Prepare request data
             data = {
                 "occasion": occasion,
                 "season": season,
                 "age": age,
                 "mood": mood,
-                "format_instructions": """Respond EXACTLY in this structure:
-                ### OUTFIT CONCEPT 1
-                ✨ [2-3 word theme] 
-                👗 **Top**: [item + emoji]  
-                👖 **Bottom**: [item + emoji]  
-                👟 **Shoes**: [item + emoji]  
-                💎 **Accent**: [item + emoji]  
-                🌟 **Why It Works**: [10-12 words]  
+                "format_instructions": """
+### OUTFIT CONCEPT 1
+✨ [2-3 word theme]  
+👗 **Top**: [item + emoji]  
+👖 **Bottom**: [item + emoji]  
+👟 **Shoes**: [item + emoji]  
+💎 **Accent**: [item + emoji]  
+🌟 **Why It Works**: [10-12 words]
 
-                ### OUTFIT CONCEPT 2
-                ✨ [2-3 word theme]  
-                [Same structure as above]  
+### OUTFIT CONCEPT 2
+✨ [2-3 word theme]  
+👗 **Top**: ...  
+👖 **Bottom**: ...  
+👟 **Shoes**: ...  
+💎 **Accent**: ...  
+🌟 **Why It Works**: ...
 
-                💡 **Pro Stylist Tip**: [15 words max]"""
+💡 **Pro Stylist Tip**: [one sentence only]
+"""
             }
 
             with st.spinner("🎨 Designing your personalized lookbook..."):
-                # Call your API
                 response = requests.post(
                     "https://stylesync-backend-2kz6.onrender.com/upload",
                     files={'file': ('image.jpg', uploaded_file.getvalue(), 'image/jpeg')},
                     data=data
                 )
-                
+
                 if response.status_code == 200:
                     suggestion = response.json()["fashion_suggestion"]
-                    
-                    # Display section
+
+                    if "OUTFIT CONCEPT" not in suggestion:
+                        st.warning("⚠️ Couldn’t format nicely — here’s the raw suggestion:")
+                        st.markdown(suggestion)
+                        return
+
                     st.success("🎉 Lookbook Ready!")
-                    st.subheader(f"👑 {occasion} Lookbook • {mood.capitalize()} Mood")
+                    st.subheader(f"👑 {occasion} Lookbook • {mood} Mood")
                     st.caption(f"Perfect for {age} | {season} appropriate")
-                    
-                    # Split into outfit concepts
+
                     for section in suggestion.split('### ')[1:]:
                         if "OUTFIT CONCEPT" in section:
-                            header, *items = section.split('\n')
-                            with st.container():
-                                st.markdown(f"#### {header.strip()}")
-                                for item in items:
-                                    if item.strip() and ":" in item:
+                            lines = section.strip().split("\n")
+                            if lines:
+                                st.markdown(f"#### ✨ {lines[0].strip()}")
+                                for line in lines[1:]:
+                                    if ":" in line:
+                                        label, value = line.split(":", 1)
                                         icon = {
-                                            "Top": "👚",
-                                            "Bottom": "👖", 
-                                            "Shoes": "👟",
-                                            "Accent": "💎",
-                                            "Why": "🌟"
-                                        }.get(item.split(':')[0].strip(), "✨")
-                                        st.markdown(f"{icon} {item.strip()}")
+                                            "Top": "👚", "Bottom": "👖", 
+                                            "Shoes": "👟", "Accent": "💎", 
+                                            "Why It Works": "🌟"
+                                        }.get(label.strip(), "🧵")
+                                        st.markdown(f"{icon} **{label.strip()}**: {value.strip()}")
                         elif "Pro Stylist Tip" in section:
+                            tip = section.split(":", 1)[-1].strip()
                             st.divider()
-                            st.markdown(f"💎 **Pro Tip**: *{section.split(':')[-1].strip()}*")
-                    
-                    # Audio version - moved outside container
-                    tts_button = st.button("🔊 Listen to Your Stylist")
-                    if tts_button:
+                            st.markdown(f"💡 **Pro Tip**: *{tip}*")
+
+                    # 🎧 Text-to-Speech
+                    if st.button("🔊 Listen to Your Stylist"):
+                        from io import BytesIO
                         tts = gTTS(suggestion, lang=lang_codes[language_option])
-                        tts.save("lookbook.mp3")
-                        st.audio("lookbook.mp3")
-                
+                        tts_io = BytesIO()
+                        tts.write_to_fp(tts_io)
+                        tts_io.seek(0)
+                        st.audio(tts_io, format="audio/mp3")
                 else:
                     st.error("🚨 Our stylists are busy! Try again in a moment.")
+
 
 # ---------- Tab 2: Travel Assistant (Trends-style format) ----------
 with tab2:
