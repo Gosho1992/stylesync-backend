@@ -240,7 +240,7 @@ lang_codes = {
 # ---------- Tabs ----------
 tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Assistant", "📊 Trends"])
 
-# ---------- Tab 1: Outfit Suggestion (Fixed & Refined) ----------
+# ---------- Tab 1: Outfit Suggestion (Fixed Visibility Version) ----------
 with tab1:
     st.header("👗 Personal Style Assistant")
     
@@ -267,7 +267,7 @@ with tab1:
         st.image(Image.open(uploaded_file), caption="🖼️ Your Style Foundation", width=300)
 
         if st.button("✨ Get Style Recommendations", type="primary", use_container_width=True):
-            # Prepare request data with robust formatting instructions
+            # Prepare request data
             data = {
                 "occasion": occasion,
                 "season": season,
@@ -275,86 +275,75 @@ with tab1:
                 "mood": mood,
                 "format_instructions": """Respond in this EXACT format:
                 
-                ## Outfit 1: [Creative Name]
-                - 👚 Top: [Description with emoji]
-                - 👖 Bottom: [Description with emoji]
-               - 👟 Shoes: [Description with emoji]
-                - 🧥 Outerwear: [Description with emoji] (if needed)
-                - 💎 Accents: [1-3 accessories with emojis]
-                - ✨ Why It Works: [Brief benefit statement]
+                ## OUTFIT 1: [Creative Name]
+                - 👚 Top: [Description]
+                - 👖 Bottom: [Description]
+                - 👟 Shoes: [Description]
+                - 💎 Accents: [Accessories]
+                - ✨ Why: [Brief explanation]
                 
-                ## Outfit 2: [Creative Name]
-                [Same structure as above]
+                ## OUTFIT 2: [Creative Name]
+                [Same format as above]
                 
-                💡 Style Tip: [One practical tip]"""
+                💡 Tip: [One styling tip]"""
             }
 
-            with st.spinner("🎨 Curating your perfect looks..."):
+            with st.spinner("🎨 Analyzing your style and generating recommendations..."):
                 try:
                     response = requests.post(
                         "https://stylesync-backend-2kz6.onrender.com/upload",
                         files={'file': ('image.jpg', uploaded_file.getvalue(), 'image/jpeg')},
                         data=data,
-                        timeout=10
+                        timeout=15
                     )
 
                     if response.status_code == 200:
                         suggestion = response.json().get("fashion_suggestion", "")
                         
                         if not suggestion:
-                            st.warning("🔄 Got empty suggestions. Please try again.")
+                            st.error("❌ No suggestions were generated. Please try again.")
                         else:
+                            # Clear previous output
+                            st.empty()
+                            
                             st.success("✅ Your Personalized Style Guide")
                             st.caption(f"For {occasion} occasions | {mood} mood | {age}")
                             
-                            # Process and display suggestions safely
-                            if "## Outfit" in suggestion:
-                                for outfit_section in suggestion.split('## ')[1:]:
-                                    if "Outfit" in outfit_section:
-                                        title, *items = outfit_section.split('\n')
-                                        with st.container(border=True):
-                                            st.subheader(f"🌟 {title.split(':')[1].strip()}")
-                                            for item in items:
-                                                if item.strip() and any(emoji in item for emoji in ["👚", "👖", "👟", "🧥", "💎", "✨"]):
-                                                    st.markdown(f"- {item.strip()}")
-                                
-                                # Display style tip if present
-                                if "💡 Style Tip:" in suggestion:
-                                    st.divider()
-                                    st.info(f"💡 **Expert Tip**: {suggestion.split('💡 Style Tip:')[-1].strip()}")
-                            else:
-                                st.warning("⚠️ Showing raw suggestions:")
+                            # Display the full suggestion in a scrollable box
+                            with st.expander("📜 View Complete Recommendations", expanded=True):
                                 st.markdown(suggestion)
                             
                             # Audio version
                             if st.button("🔊 Listen to Recommendations"):
-                                tts = gTTS(suggestion, lang=lang_codes[language_option])
-                                audio_file = BytesIO()
-                                tts.write_to_fp(audio_file)
-                                audio_file.seek(0)
-                                st.audio(audio_file, format="audio/mp3")
+                                with st.spinner("Preparing audio..."):
+                                    tts = gTTS(suggestion, lang=lang_codes[language_option])
+                                    audio_file = BytesIO()
+                                    tts.write_to_fp(audio_file)
+                                    audio_file.seek(0)
+                                    st.audio(audio_file, format="audio/mp3")
                     
                     else:
-                        st.error(f"❌ Error {response.status_code}: Please try again later")
-
+                        st.error(f"❌ Server error {response.status_code}. Please try again later.")
+                
+                except requests.exceptions.RequestException as e:
+                    st.error(f"⚠️ Connection failed: {str(e)}")
                 except Exception as e:
-                    st.error(f"⚠️ Connection issue: {str(e)}")
+                    st.error(f"⚠️ Unexpected error: {str(e)}")
 
-# Add some custom CSS
+# Add some custom styling
 st.markdown("""
 <style>
-    div[data-testid="stVerticalBlockBorderWrapper"] {
+    div[data-testid="stExpanderDetails"] {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+    }
+    div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlockBorderWrapper"] {
         border-radius: 10px;
         padding: 1rem;
-        background: rgba(255,255,255,0.9);
-    }
-    div[data-testid="stExpander"] div[role="button"] p {
-        font-weight: 500;
-        color: #6a1b9a;
     }
 </style>
 """, unsafe_allow_html=True)
-
 
 # ---------- Tab 2: Travel Assistant (Trends-style format) ----------
 with tab2:
