@@ -300,9 +300,12 @@ with tab1:
                     suggestion = response.json()["fashion_suggestion"]
 
                     if "OUTFIT CONCEPT" not in suggestion:
-                        st.warning("⚠️ Couldn’t format nicely — here’s the raw suggestion:")
-                        st.markdown(suggestion)
-                        return
+    		    st.warning("⚠️ Couldn’t format nicely — here’s the raw suggestion:")
+  		    st.markdown(suggestion)
+		    else:
+                         st.success("🎉 Lookbook Ready!")
+                         st.subheader(f"👑 {occasion} Lookbook • {mood} Mood")
+                         st.caption(f"Perfect for {age} | {season} appropriate")
 
                     st.success("🎉 Lookbook Ready!")
                     st.subheader(f"👑 {occasion} Lookbook • {mood} Mood")
