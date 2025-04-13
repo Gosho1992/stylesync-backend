@@ -253,7 +253,7 @@ with tab1:
         with col2:
             age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"], key="age1")
             mood = st.selectbox("😌 Mood", ["Happy", "Lazy", "Motivated", "Romantic", "Confident", "Chill", 
-                                            "Adventurous", "Classy", "Energetic", "Bold", "Elegant", "Sad"], key="mood1")
+                                          "Adventurous", "Classy", "Energetic", "Bold", "Elegant", "Sad"], key="mood1")
 
     # Image Upload
     uploaded_file = st.file_uploader("📸 Upload Your Clothing Item", type=["jpg", "jpeg", "png"])
@@ -300,44 +300,40 @@ with tab1:
                     suggestion = response.json()["fashion_suggestion"]
 
                     if "OUTFIT CONCEPT" not in suggestion:
-    		    st.warning("⚠️ Couldn’t format nicely — here’s the raw suggestion:")
-  		    st.markdown(suggestion)
-		    else:
-                         st.success("🎉 Lookbook Ready!")
-                         st.subheader(f"👑 {occasion} Lookbook • {mood} Mood")
-                         st.caption(f"Perfect for {age} | {season} appropriate")
+                        st.warning("⚠️ Couldn't format nicely — here's the raw suggestion:")
+                        st.markdown(suggestion)
+                    else:
+                        st.success("🎉 Lookbook Ready!")
+                        st.subheader(f"👑 {occasion} Lookbook • {mood} Mood")
+                        st.caption(f"Perfect for {age} | {season} appropriate")
 
-                    st.success("🎉 Lookbook Ready!")
-                    st.subheader(f"👑 {occasion} Lookbook • {mood} Mood")
-                    st.caption(f"Perfect for {age} | {season} appropriate")
+                        for section in suggestion.split('### ')[1:]:
+                            if "OUTFIT CONCEPT" in section:
+                                lines = section.strip().split("\n")
+                                if lines:
+                                    st.markdown(f"#### ✨ {lines[0].strip()}")
+                                    for line in lines[1:]:
+                                        if ":" in line:
+                                            label, value = line.split(":", 1)
+                                            icon = {
+                                                "Top": "👚", "Bottom": "👖", 
+                                                "Shoes": "👟", "Accent": "💎", 
+                                                "Why It Works": "🌟"
+                                            }.get(label.strip(), "🧵")
+                                            st.markdown(f"{icon} **{label.strip()}**: {value.strip()}")
+                            elif "Pro Stylist Tip" in section:
+                                tip = section.split(":", 1)[-1].strip()
+                                st.divider()
+                                st.markdown(f"💡 **Pro Tip**: *{tip}*")
 
-                    for section in suggestion.split('### ')[1:]:
-                        if "OUTFIT CONCEPT" in section:
-                            lines = section.strip().split("\n")
-                            if lines:
-                                st.markdown(f"#### ✨ {lines[0].strip()}")
-                                for line in lines[1:]:
-                                    if ":" in line:
-                                        label, value = line.split(":", 1)
-                                        icon = {
-                                            "Top": "👚", "Bottom": "👖", 
-                                            "Shoes": "👟", "Accent": "💎", 
-                                            "Why It Works": "🌟"
-                                        }.get(label.strip(), "🧵")
-                                        st.markdown(f"{icon} **{label.strip()}**: {value.strip()}")
-                        elif "Pro Stylist Tip" in section:
-                            tip = section.split(":", 1)[-1].strip()
-                            st.divider()
-                            st.markdown(f"💡 **Pro Tip**: *{tip}*")
-
-                    # 🎧 Text-to-Speech
-                    if st.button("🔊 Listen to Your Stylist"):
-                        from io import BytesIO
-                        tts = gTTS(suggestion, lang=lang_codes[language_option])
-                        tts_io = BytesIO()
-                        tts.write_to_fp(tts_io)
-                        tts_io.seek(0)
-                        st.audio(tts_io, format="audio/mp3")
+                        # 🎧 Text-to-Speech
+                        if st.button("🔊 Listen to Your Stylist"):
+                            from io import BytesIO
+                            tts = gTTS(suggestion, lang=lang_codes[language_option])
+                            tts_io = BytesIO()
+                            tts.write_to_fp(tts_io)
+                            tts_io.seek(0)
+                            st.audio(tts_io, format="audio/mp3")
                 else:
                     st.error("🚨 Our stylists are busy! Try again in a moment.")
 
