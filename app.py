@@ -63,42 +63,49 @@ def upload_image():
     # Send to OpenAI
     try:
         
-prompt = (
-    f"You are a high-end fashion stylist. A user has uploaded a clothing item. "
-    f"Ignore the person and focus only on styling based on that item. "
-    f"Using these filters:\n"
-    f"- Occasion: {occasion}\n"
-    f"- Season: {season}\n"
-    f"- Age Group: {age_group}\n"
-    f"- Mood: {mood}\n"
-    f"- Region-based fashion (e.g. trench coats in Europe, shalwar kameez in Pakistan)\n\n"
+    prompt = f"""
+As Creative Director of a luxury fashion house, transform this single item into a head-to-toe look worthy of a Vogue editorial. 
 
-    f"Return a stylish outfit suggestion using this structure in markdown format:\n\n"
+**Client Brief:**
+- 📍 Location Influence: {region}-inspired details (e.g., Parisian tailoring, Tokyo streetwear)
+- 🎯 Occasion: {occasion}-appropriate with a fashion-forward twist  
+- 🌦️ Season: {season}-optimized fabrics and layering  
+- 👑 Age: {age_group}-flattering silhouettes  
+- 😌 Mood: {mood}-enhancing color psychology  
 
-    f"**👋 Greeting:**\n"
-    f"A short friendly message to set the tone (1–2 lines).\n\n"
+**Deliverables (Strict Markdown Format):**
 
-    f"**👕 Top (Central Piece):**\n"
-    f"A fashionable shirt/top that matches the item + mood.\n\n"
+**🖤 Signature Look:**  
+*(1-line theme summary, e.g., "Modern minimalism with Baroque accents")*  
 
-    f"**👖 Bottoms:**\n"
-    f"Suggested pants, skirts, or jeans.\n\n"
+**🔍 Style Breakdown:**  
+- **Top:** [Designer-inspired pairing] + [fabric detail]  
+  *(e.g., "Bottega-inspired knit vest over the shirt for texture play")*  
+- **Bottoms:** [Trend-aware bottom] + [styling tip]  
+  *(e.g., "Wide-leg trousers (cuffed to show ankle) — Balenciaga SS24 vibe")*  
+- **Shoes:** [Seasonal statement footwear] + [functional note]  
+  *(e.g., "Prada platform loafers: elevates height + all-day comfort")*  
+- **Outerwear:** [Weather-appropriate topper] + [cultural nod]  
+  *(e.g., "Oversized blazer (Italian wool) — Milanese power dressing")*  
+- **Accessories:**  
+  - [Signature piece] *(e.g., "Vintage Cartier tank watch")*  
+  - [Functional add-on] *(e.g., "Acne Studios tote fits a laptop")*  
+  - [Trend accent] *(e.g., "Chunky chain necklace à la Bella Hadid")*  
 
-    f"**👟 Shoes:**\n"
-    f"Footwear based on the season & vibe.\n\n"
+**💎 Pro Secret:**  
+*(1 insider tip, e.g., "Tuck just the front for leg-lengthening effect")*  
 
-    f"**🧥 Outerwear:**\n"
-    f"Layered jackets or coats depending on weather.\n\n"
+**✨ Final Note:**  
+"(Mood-boosting affirmation, e.g., 'This look will turn sidewalks into runways—own it!')"  
 
-    f"**💍 Accessories:**\n"
-    f"Suggestions like watch, bag, scarf, sunglasses.\n\n"
-
-    f"**💬 Final Words:**\n"
-    f"End with 1–2 lines of friendly, encouraging fashion advice that fits the user's mood.\n\n"
-
-    f"Write in clear, spaced **markdown format** using bullet points where needed. Avoid using '###', just use headings like '**Section Title:**'. "
+**Rules:**  
+1. Use ONLY the markdown headings above  
+2. Never suggest "pair with jeans" without specifics  
+3. Mention at least 1 regional trend reference  
+4. Current season ({season}) trends must be visible  
+5. Mood must reflect in color/fabric choices  
+"""
 )
-
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
