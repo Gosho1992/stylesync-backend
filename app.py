@@ -85,19 +85,13 @@ As Creative Director of {styling['gender']}'s fashion at Vogue, create 2 complet
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are a senior fashion stylist specializing in personalized looks."},
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {"type": "image_url", "image_url": f"data:image/jpeg;base64,{base64_image}"}
-                    ]
-                }
-            ],
-            max_tokens=1000
-        )
+    model="gpt-4",
+    messages=[
+        {"role": "system", "content": "You are a senior fashion stylist who gives personalized outfit recommendations."},
+        {"role": "user", "content": prompt}
+    ],
+    max_tokens=1000
+)
 
         content = response.choices[0].message.content.strip()
 
