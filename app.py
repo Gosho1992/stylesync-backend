@@ -1,3 +1,4 @@
+
 from flask import Flask, request, jsonify
 import os
 import base64
@@ -5,7 +6,7 @@ import openai
 from werkzeug.utils import secure_filename
 from time import sleep
 
-# Configuration
+# Load API key from environment
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise ValueError("API key missing")
@@ -38,9 +39,8 @@ def upload_image():
         return jsonify({"error": "Invalid file type"}), 400
 
     try:
-        # Process image and form data
         base64_image = process_image(file)
-        styling_data = {
+        styling = {
             "occasion": request.form.get("occasion", "Casual"),
             "season": request.form.get("season", "Any"),
             "gender": request.form.get("gender", "Woman"),
@@ -49,40 +49,45 @@ def upload_image():
             "mood": request.form.get("mood", "Confident")
         }
 
-        # Enhanced prompt with fallback instructions
-        prompt = f"""As Vogue's lead stylist, create 2 looks for:
-- {styling_data['gender']} aged {styling_data['age']}
-- Body type: {styling_data['body_type']}
-- Mood: {styling_data['mood']}
-- Season: {styling_data['season']}
-- Occasion: {styling_data['occasion']}
+        # Streamlined prompt for ONE refined look with clean formatting
+        prompt = f"""
+You are a world-class AI stylist. Generate one refined fashion look based on the client's preferences.
 
-Format strictly as:
+👤 Client Profile:
+- Gender: {styling['gender']}
+- Age: {styling['age']}
+- Body Type: {styling['body_type']}
+- Occasion: {styling['occasion']}
+- Season: {styling['season']}
+- Mood: {styling['mood']}
 
-LOOK 1: [Theme Name]
-✨ Vibe: [2-3 words]
-👕 Top: [Item] + [Detail]
-👖 Bottom: [Item] + [Detail]
-👟 Shoes: [Type] + [Benefit]
-🧥 Layers: [Item] + [Weather Note]
-💎 Accents: 1) [Item] 2) [Item] 3) [Item]
-📏 Fit Hack: {styling_data['body_type']}-specific tip
+🎨 Return result in this exact format with emoji headers and short, styled paragraphs:
 
-LOOK 2: [Different Theme]
-[Same structure]
+🖤 **Signature Look**: [1-line title, e.g., "Boho Bloom" or "Parisian Edge"]
 
-⚡ Pro Tip: [Cross-outfit advice]"""
+🔍 **Style Breakdown**:
+- 👗 **Top**: [Description with fabric, cut, and styling tip]
+- 👖 **Bottom**: [Fit + occasion-relevance]
+- 👟 **Shoes**: [Comfort + seasonal fit]
+- 🧥 **Layers**: [Outerwear, culture/style nod]
+- 💎 **Accessories**: [3 thoughtful items for utility or flair]
+- 📏 **Fit Hack**: [Body-type specific enhancement]
 
-        # Retry mechanism
-        max_retries = 3
-        for attempt in range(max_retries):
+💡 **Stylist Affirmation**: [One motivational sentence in quotes]
+"""
+
+        retries = 3
+        for attempt in range(retries):
             try:
                 response = client.chat.completions.create(
                     model="gpt-4o",
                     messages=[
                         {
-                            "role": "system", 
-                            "content": "You are a precise fashion AI. Never say you can't suggest outfits."
+                            "role": "system",
+                            "content": (
+                                "You are a highly intelligent fashion assistant. "
+                                "Always return a single, perfectly formatted suggestion. Be visual and stylish."
+                            )
                         },
                         {
                             "role": "user",
@@ -99,24 +104,22 @@ LOOK 2: [Different Theme]
                         }
                     ],
                     temperature=0.7,
-                    max_tokens=1200
+                    max_tokens=1100
                 )
-                
-                suggestion = response.choices[0].message.content
-                if "LOOK 1:" in suggestion and "LOOK 2:" in suggestion:
+
+                suggestion = response.choices[0].message.content.strip()
+
+                if suggestion and len(suggestion) > 80:
                     return jsonify({
                         "status": "success",
                         "suggestion": suggestion,
-                        "meta": styling_data
+                        "meta": styling
                     })
-                
-                sleep(1)  # Wait before retry
 
             except Exception as e:
-                if attempt == max_retries - 1:
-                    raise e
+                if attempt == retries - 1:
+                    return jsonify({"error": "OpenAI API failed", "details": str(e)}), 500
                 sleep(2)
-                continue
 
         return jsonify({"error": "Incomplete suggestions"}), 500
 
