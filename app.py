@@ -85,7 +85,7 @@ As Creative Director of {styling['gender']}'s fashion at Vogue, create 2 complet
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4-vision-preview",
+            model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are a senior fashion stylist specializing in personalized looks."},
                 {
@@ -96,7 +96,7 @@ As Creative Director of {styling['gender']}'s fashion at Vogue, create 2 complet
                     ]
                 }
             ],
-            max_tokens=1200
+            max_tokens=1000
         )
 
         content = response.choices[0].message.content.strip()
