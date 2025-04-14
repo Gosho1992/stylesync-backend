@@ -5,7 +5,7 @@ import openai
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load environment variables from .env
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
@@ -21,10 +21,11 @@ ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+# Validate file extension
 def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# Convert image to base64 string
 def encode_image(image_path):
     try:
         with open(image_path, "rb") as image_file:
@@ -35,23 +36,22 @@ def encode_image(image_path):
 
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"status": "ready", "version": "2.0"})
+    return jsonify({"status": "ready", "version": "2.1"})
 
 @app.route("/upload", methods=["POST"])
 def upload_image():
-    # Validate file
     if 'file' not in request.files:
-        return jsonify({"error": "No file part"}), 400
-    
+        return jsonify({"error": "No file provided"}), 400
+
     file = request.files['file']
     if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
-    
-    if not allowed_file(file.filename):
-        return jsonify({"error": "Invalid file type"}), 400
+        return jsonify({"error": "No filename found"}), 400
 
-    # Get all styling parameters
-    styling_params = {
+    if not allowed_file(file.filename):
+        return jsonify({"error": "Unsupported file type"}), 400
+
+    # Extract style fields
+    styling = {
         "occasion": request.form.get("occasion", "Casual"),
         "season": request.form.get("season", "Any"),
         "gender": request.form.get("gender", "Woman"),
@@ -61,84 +61,60 @@ def upload_image():
         "format_instructions": request.form.get("format_instructions", "")
     }
 
-    # Save file
+    # Save image locally
     filename = secure_filename(file.filename)
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     file.save(filepath)
-    
-    # Process image
+
+    # Encode for OpenAI
     base64_image = encode_image(filepath)
     if not base64_image:
-        return jsonify({"error": "Image processing failed"}), 500
+        return jsonify({"error": "Failed to process image"}), 500
 
-    # Generate fashion prompt
+    # Construct prompt
     prompt = f"""
-As Creative Director of {styling_params['gender']}'s fashion at Vogue, create 2 complete looks based on:
-- 👗 Body Type: {styling_params['body_type']}-optimized silhouettes
-- 🎯 Occasion: {styling_params['occasion']}-appropriate styling
-- 🌦️ Season: {styling_params['season']}-specific fabrics
-- 😌 Mood: {styling_params['mood']}-enhancing colors
-- 👑 Age: {styling_params['age']}-relevant trends
+As Creative Director of {styling['gender']}'s fashion at Vogue, create 2 complete looks based on:
+- 👗 Body Type: {styling['body_type']}-optimized silhouettes
+- 🎯 Occasion: {styling['occasion']}-appropriate styling
+- 🌦️ Season: {styling['season']}-specific fabrics
+- 😌 Mood: {styling['mood']}-enhancing colors
+- 👑 Age: {styling['age']}-relevant trends
 
-**Structure each look with:**
-1. ✨ THEME: 2-word aesthetic
-2. 🧥 OUTFIT: 3-5 pieces with technical details
-3. 📏 FIT HACK: {styling_params['body_type']}-specific trick
-4. 💎 ACCENTS: 3 curated accessories
-5. ⚡ IMPACT: How this elevates the wearer
-
-Format exactly as:
-## LOOK 1: [Theme]
-- ✨ Vibe: [description]
-- 👕 Top: [item] + [fabric] + [styling tip]
-- 👖 Bottom: [item] + [fit note] 
-- 👟 Shoes: [type] + [functional benefit]
-- 📏 Fit Hack: [specific to {styling_params['body_type']}]
-- 💎 Accents: 1) [item] 2) [item] 3) [item]
-- ⚡ Why: [confidence/mood boost]
-
-## LOOK 2: [Different Theme]
-[Same structure]
-
-💡 Universal Tip: Cross-seasonal styling advice
+{styling['format_instructions'] or "Use a stylistic, clear structure with emoji headings and short paragraphs."}
 """
 
     try:
-        # Call OpenAI with image and enhanced prompt
         response = client.chat.completions.create(
             model="gpt-4-vision-preview",
             messages=[
-                {
-                    "role": "system",
-                    "content": "You are a senior fashion stylist specializing in personalized looks."
-                },
+                {"role": "system", "content": "You are a senior fashion stylist specializing in personalized looks."},
                 {
                     "role": "user",
                     "content": [
                         {"type": "text", "text": prompt},
-                        {
-                            "type": "image_url",
-                            "image_url": f"data:image/jpeg;base64,{base64_image}"
-                        }
+                        {"type": "image_url", "image_url": f"data:image/jpeg;base64,{base64_image}"}
                     ]
                 }
             ],
-            max_tokens=1000
+            max_tokens=1200
         )
 
-        # Clean up
+        content = response.choices[0].message.content.strip()
+
         os.remove(filepath)
 
         return jsonify({
             "status": "success",
-            "fashion_suggestion": response.choices[0].message.content,
-            "meta": styling_params
+            "fashion_suggestion": content,
+            "meta": styling
         })
 
     except Exception as e:
-        print(f"API Error: {str(e)}")
-        return jsonify({"error": "Fashion engine overloaded", "details": str(e)}), 500
+        print("❌ Error:", str(e))
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        return jsonify({"error": "OpenAI API failed", "details": str(e)}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port)
