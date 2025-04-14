@@ -240,107 +240,142 @@ lang_codes = {
 # ---------- Tabs ----------
 tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Assistant", "📊 Trends"])
 
-# ---------- Tab 1: Outfit Suggestion (Fixed Visibility Version) ----------
+# ---------- Tab 1: Outfit Suggestion (Enhanced Version) ----------
 with tab1:
-    st.header("👗 Personal Style Assistant")
+    st.header("👑 Personal Style Architect")
     
     # Style Preferences
-    with st.expander("✨ Set Your Preferences", expanded=True):
-        col1, col2 = st.columns(2)
+    with st.expander("✨ Style Blueprint", expanded=True):
+        col1, col2, col3 = st.columns(3)
         with col1:
-            occasion = st.selectbox("🎯 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work"], 
-                                 key="occasion1")
-            season = st.selectbox("🌦️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn"], 
-                               key="season1")
+            occasion = st.selectbox("🎯 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work", "Date"], 
+                                  key="occasion1")
+            season = st.selectbox("🌦️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn", "Monsoon"], 
+                                key="season1")
         with col2:
-            age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+"], 
+            gender = st.selectbox("🚻 Gender", ["Woman", "Man", "Non-binary", "Prefer not to say"], 
+                                key="gender1")
+            body_type = st.selectbox("🧍 Body Type", ["Petite", "Tall", "Plus-size", "Athletic", "Average", "Curvy"], 
+                                   key="bodytype1")
+        with col3:
+            age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+", "60+"], 
                              key="age1")
             mood = st.selectbox("😌 Mood", ["Happy", "Lazy", "Motivated", "Romantic", "Confident", 
-                                         "Chill", "Adventurous", "Classy", "Energetic", "Bold", 
-                                         "Elegant", "Sad"], 
+                                          "Chill", "Adventurous", "Classy", "Energetic", "Bold", 
+                                          "Elegant", "Sophisticated", "Edgy"], 
                              key="mood1")
 
     # Image Upload
-    uploaded_file = st.file_uploader("📸 Upload Your Clothing Item", type=["jpg", "jpeg", "png"])
+    uploaded_file = st.file_uploader("📸 Upload Your Style Canvas", type=["jpg", "jpeg", "png"],
+                                   help="For best results, use well-lit front-facing images")
     
     if uploaded_file:
-        st.image(Image.open(uploaded_file), caption="🖼️ Your Style Foundation", width=300)
+        st.image(Image.open(uploaded_file), caption="🎨 Your Style Foundation", width=300)
 
-        if st.button("✨ Get Style Recommendations", type="primary", use_container_width=True):
-            # Prepare request data
+        if st.button("✨ Generate Masterpiece", type="primary", use_container_width=True):
+            # Prepare enhanced request data
             data = {
                 "occasion": occasion,
                 "season": season,
+                "gender": gender,
+                "body_type": body_type,
                 "age": age,
                 "mood": mood,
-                "format_instructions": """Respond in this EXACT format:
-                
-                ## OUTFIT 1: [Creative Name]
-                - 👚 Top: [Description]
-                - 👖 Bottom: [Description]
-                - 👟 Shoes: [Description]
-                - 💎 Accents: [Accessories]
-                - ✨ Why: [Brief explanation]
-                
-                ## OUTFIT 2: [Creative Name]
-                [Same format as above]
-                
-                💡 Tip: [One styling tip]"""
+                "format_instructions": """Respond in this STRUCTURE:
+
+                ## LOOK 1: [Theme Name]
+                - ✨ **Vibe**: [2-word mood descriptor]
+                - 👗 **Top**: [Item] + [Fabric/Cut Detail] + [Styling Tip]
+                - 👖 **Bottom**: [Item] + [Fit Note] + [Trend Reference]
+                - 👟 **Shoes**: [Type] + [Height/Comfort] + [Seasonal Advice]
+                - 🧥 **Layers**: [Item] + [Weather Adaptability] + [Cultural Nod]
+                - 💎 **Accents**: [3 items with functional/personal benefits]
+                - 📏 **Fit Hack**: [Body-type specific trick]
+
+                ## LOOK 2: [Different Theme]
+                [Same structure]
+
+                💡 **Style Alchemy**: [1 transformative tip combining 2+ filters]"""
             }
 
-            with st.spinner("🎨 Analyzing your style and generating recommendations..."):
+            with st.status("🎨 Crafting your couture vision...", expanded=True):
+                # Visual loading indicator
+                st_lottie(load_lottieurl("https://assets9.lottiefiles.com/packages/lf20_6wutsrox.json"), 
+                          height=100, key="styling")
+                
                 try:
                     response = requests.post(
                         "https://stylesync-backend-2kz6.onrender.com/upload",
                         files={'file': ('image.jpg', uploaded_file.getvalue(), 'image/jpeg')},
                         data=data,
-                        timeout=15
+                        timeout=20
                     )
 
                     if response.status_code == 200:
                         suggestion = response.json().get("fashion_suggestion", "")
                         
                         if not suggestion:
-                            st.error("❌ No suggestions were generated. Please try again.")
+                            st.error("🎭 Our stylists need more inspiration! Try again.")
                         else:
-                            # Clear previous output
-                            st.empty()
+                            st.balloons()
+                            st.success("🌟 Style Masterpiece Completed!")
                             
-                            st.success("✅ Your Personalized Style Guide")
-                            st.caption(f"For {occasion} occasions | {mood} mood | {age}")
+                            # Enhanced display
+                            with st.container():
+                                st.markdown(f"""
+                                <div style='background: linear-gradient(to right, #f8f9fa, #ffffff);
+                                            padding: 2rem; border-radius: 15px;
+                                            box-shadow: 0 4px 12px rgba(0,0,0,0.05)'>
+                                {suggestion}
+                                </div>
+                                """, unsafe_allow_html=True)
                             
-                            # Display the full suggestion in a scrollable box
-                            with st.expander("📜 View Complete Recommendations", expanded=True):
-                                st.markdown(suggestion)
-                            
-                            # Audio version
-                            if st.button("🔊 Listen to Recommendations"):
-                                with st.spinner("Preparing audio..."):
+                            # Interactive elements
+                            with st.expander("🔍 Style Breakdown", expanded=False):
+                                st.markdown("""
+                                | Filter | Applied Value |
+                                |--------|---------------|
+                                | Gender | {gender} |
+                                | Body Type | {body_type} |
+                                | Age | {age} |
+                                | Mood | {mood} |
+                                """.format(**data))
+                                
+                            # Audio version with progress
+                            if st.button("🎧 Hear Your Style Story"):
+                                with st.spinner("Composing your fashion sonnet..."):
                                     tts = gTTS(suggestion, lang=lang_codes[language_option])
-                                    audio_file = BytesIO()
-                                    tts.write_to_fp(audio_file)
-                                    audio_file.seek(0)
-                                    st.audio(audio_file, format="audio/mp3")
+                                    audio_bytes = BytesIO()
+                                    tts.write_to_fp(audio_bytes)
+                                    audio_bytes.seek(0)
+                                    st.audio(audio_bytes, format="audio/mp3")
                     
                     else:
-                        st.error(f"❌ Server error {response.status_code}. Please try again later.")
+                        st.error(f"⚠️ Creative Block (Error {response.status_code})")
                 
                 except requests.exceptions.RequestException as e:
-                    st.error(f"⚠️ Connection failed: {str(e)}")
+                    st.error(f"🌐 Connection Error: The fashion universe is unreachable")
                 except Exception as e:
-                    st.error(f"⚠️ Unexpected error: {str(e)}")
+                    st.error(f"🎭 Unexpected Artistry Failure: {str(e)}")
 
-# Add some custom styling
+# Enhanced CSS
 st.markdown("""
 <style>
-    div[data-testid="stExpanderDetails"] {
-        background-color: #f8f9fa;
-        border-radius: 8px;
-        padding: 1rem;
+    div[data-testid="stExpander"] div[role="button"] p {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #6a1b9a;
     }
-    div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlockBorderWrapper"] {
-        border-radius: 10px;
-        padding: 1rem;
+    div[data-testid="stStatusWidget"] > div {
+        background-color: #f3e5f5 !important;
+    }
+    .stButton>button {
+        border: 2px solid #9c27b0;
+        transition: all 0.3s;
+    }
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(156, 39, 176, 0.3);
     }
 </style>
 """, unsafe_allow_html=True)
