@@ -1,15 +1,13 @@
-
 from flask import Flask, request, jsonify
 import os
 import base64
 import openai
 from werkzeug.utils import secure_filename
-from time import sleep
 
-# Load API key from environment
+# Load API key
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
-    raise ValueError("API key missing")
+    raise ValueError("Missing OpenAI API key")
 
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 app = Flask(__name__)
@@ -18,116 +16,97 @@ UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-def process_image(file):
+# Helper: Encode image to base64
+def encode_image(file):
     filename = secure_filename(file.filename)
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     file.save(filepath)
-    
-    with open(filepath, "rb") as image_file:
-        encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
+
+    with open(filepath, "rb") as img:
+        encoded = base64.b64encode(img.read()).decode("utf-8")
     
     os.remove(filepath)
-    return encoded_image
+    return encoded
+
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({"status": "ready", "model": "gpt-4o"})
 
 @app.route("/upload", methods=["POST"])
-def upload_image():
+def upload():
     if 'file' not in request.files:
-        return jsonify({"error": "No file"}), 400
+        return jsonify({"error": "No file uploaded"}), 400
 
     file = request.files['file']
     if not file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
-        return jsonify({"error": "Invalid file type"}), 400
+        return jsonify({"error": "Unsupported file type"}), 400
 
+    # Get form filters
+    filters = {
+        "occasion": request.form.get("occasion", "Casual"),
+        "season": request.form.get("season", "Any"),
+        "gender": request.form.get("gender", "Woman"),
+        "body_type": request.form.get("body_type", "Average"),
+        "age": request.form.get("age", "20s"),
+        "mood": request.form.get("mood", "Confident")
+    }
+
+    # Convert image
     try:
-        base64_image = process_image(file)
-        styling = {
-            "occasion": request.form.get("occasion", "Casual"),
-            "season": request.form.get("season", "Any"),
-            "gender": request.form.get("gender", "Woman"),
-            "body_type": request.form.get("body_type", "Average"),
-            "age": request.form.get("age", "20s"),
-            "mood": request.form.get("mood", "Confident")
-        }
+        image_b64 = encode_image(file)
+    except Exception as e:
+        return jsonify({"error": "Image processing failed", "details": str(e)}), 500
 
-        # Streamlined prompt for ONE refined look with clean formatting
-        prompt = f"""
-You are a world-class AI stylist. Generate one refined fashion look based on the client's preferences.
+    # Construct prompt
+    prompt = f"""
+🎨 As Vogue's Senior AI Stylist, create ONE signature look for:
+- Gender: {filters['gender']}
+- Age Group: {filters['age']}
+- Body Type: {filters['body_type']}
+- Occasion: {filters['occasion']}
+- Season: {filters['season']}
+- Mood: {filters['mood']}
 
-👤 Client Profile:
-- Gender: {styling['gender']}
-- Age: {styling['age']}
-- Body Type: {styling['body_type']}
-- Occasion: {styling['occasion']}
-- Season: {styling['season']}
-- Mood: {styling['mood']}
+**STRUCTURE THE RESPONSE AS MARKDOWN** like this:
 
-🎨 Return result in this exact format with emoji headers and short, styled paragraphs:
+## 👗 Signature Look: [Theme Name]
 
-🖤 **Signature Look**: [1-line title, e.g., "Boho Bloom" or "Parisian Edge"]
-
-🔍 **Style Breakdown**:
-- 👗 **Top**: [Description with fabric, cut, and styling tip]
-- 👖 **Bottom**: [Fit + occasion-relevance]
-- 👟 **Shoes**: [Comfort + seasonal fit]
-- 🧥 **Layers**: [Outerwear, culture/style nod]
-- 💎 **Accessories**: [3 thoughtful items for utility or flair]
-- 📏 **Fit Hack**: [Body-type specific enhancement]
-
-💡 **Stylist Affirmation**: [One motivational sentence in quotes]
+✨ **Vibe**: [2-word mood theme]  
+👕 **Top**: [Item] + [Detail]  
+👖 **Bottom**: [Item] + [Detail]  
+👟 **Shoes**: [Type] + [Benefit]  
+🧥 **Layers**: [Optional outerwear] + [Weather Note]  
+💎 **Accents**: 1) [Item] 2) [Item] 3) [Item]  
+📏 **Fit Hack**: [Tip for {filters['body_type']}]  
+🌈 **Mood Tie-in**: How this outfit boosts {filters['mood']}  
 """
 
-        retries = 3
-        for attempt in range(retries):
-            try:
-                response = client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": (
-                                "You are a highly intelligent fashion assistant. "
-                                "Always return a single, perfectly formatted suggestion. Be visual and stylish."
-                            )
-                        },
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "text", "text": prompt},
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:image/jpeg;base64,{base64_image}",
-                                        "detail": "auto"
-                                    }
-                                }
-                            ]
-                        }
-                    ],
-                    temperature=0.7,
-                    max_tokens=1100
-                )
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a professional fashion stylist who always provides one clear, creative, and formatted look."},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": f"data:image/jpeg;base64,{image_b64}"}
+                    ]
+                }
+            ],
+            temperature=0.8,
+            max_tokens=1000
+        )
 
-                suggestion = response.choices[0].message.content.strip()
-
-                if suggestion and len(suggestion) > 80:
-                    return jsonify({
-                        "status": "success",
-                        "suggestion": suggestion,
-                        "meta": styling
-                    })
-
-            except Exception as e:
-                if attempt == retries - 1:
-                    return jsonify({"error": "OpenAI API failed", "details": str(e)}), 500
-                sleep(2)
-
-        return jsonify({"error": "Incomplete suggestions"}), 500
+        suggestion = response.choices[0].message.content.strip()
+        return jsonify({
+            "status": "success",
+            "fashion_suggestion": suggestion,
+            "meta": filters
+        })
 
     except Exception as e:
-        return jsonify({
-            "error": "Styling service unavailable",
-            "details": str(e)
-        }), 500
+        return jsonify({"error": "OpenAI API failed", "details": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
