@@ -105,7 +105,7 @@ As Creative Director of a luxury fashion house, transform this single item into 
 4. Current season ({season}) trends must be visible  
 5. Mood must reflect in color/fabric choices  
 """
-)
+
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
