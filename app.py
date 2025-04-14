@@ -3,25 +3,21 @@ import os
 import base64
 import openai
 from werkzeug.utils import secure_filename
-from dotenv import load_dotenv
 
-# Load environment variables from .env
-load_dotenv()
+# Load your API key
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
-    raise ValueError("ERROR: OpenAI API key is missing. Set OPENAI_API_KEY in the environment.")
+    raise ValueError("ERROR: OpenAI API key is missing.")
 
-# Initialize OpenAI client
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
-# Initialize Flask app
 app = Flask(__name__)
 
-# Configure upload folder
 UPLOAD_FOLDER = "uploads"
-ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+
+ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -36,7 +32,7 @@ def encode_image(image_path):
 
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"status": "StyleSync Backend is Live!", "version": "3.0"})
+    return jsonify({"message": "✅ StyleSync backend running", "version": "2.0"})
 
 @app.route("/upload", methods=["POST"])
 def upload_image():
@@ -44,76 +40,77 @@ def upload_image():
         return jsonify({"error": "No file uploaded"}), 400
 
     file = request.files['file']
-    if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
+    if file.filename == '' or not allowed_file(file.filename):
+        return jsonify({"error": "Invalid file"}), 400
 
-    if not allowed_file(file.filename):
-        return jsonify({"error": "Unsupported file type"}), 400
-
-    # Save image
+    # Save file
     filename = secure_filename(file.filename)
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     file.save(filepath)
 
-    # Encode image to base64
+    # Get styling inputs
+    occasion = request.form.get("occasion", "Casual")
+    season = request.form.get("season", "Any")
+    gender = request.form.get("gender", "Woman")
+    body_type = request.form.get("body_type", "Average")
+    age = request.form.get("age", "20s")
+    mood = request.form.get("mood", "Confident")
+    format_instructions = request.form.get("format_instructions", "")
+
     base64_image = encode_image(filepath)
     if not base64_image:
-        return jsonify({"error": "Image encoding failed"}), 500
+        return jsonify({"error": "Image processing failed"}), 500
 
-    # Extract style filters from frontend
-    styling = {
-        "occasion": request.form.get("occasion", "Casual"),
-        "season": request.form.get("season", "Any"),
-        "gender": request.form.get("gender", "Woman"),
-        "body_type": request.form.get("body_type", "Average"),
-        "age": request.form.get("age", "20s"),
-        "mood": request.form.get("mood", "Confident"),
-        "format_instructions": request.form.get("format_instructions", "")
-    }
-
-    # Construct the prompt
     prompt = f"""
-As Creative Director of {styling['gender']}'s fashion at Vogue, create 2 complete looks based on:
-- 👗 Body Type: {styling['body_type']}-optimized silhouettes
-- 🎯 Occasion: {styling['occasion']}-appropriate styling
-- 🌦️ Season: {styling['season']}-specific fabrics
-- 😌 Mood: {styling['mood']}-enhancing colors
-- 👑 Age: {styling['age']}-relevant trends
+As Creative Director of {gender}'s fashion at Vogue, design 2 stunning outfits using:
+- 🎯 Occasion: {occasion}
+- 🌦️ Season: {season}
+- 🧍 Body Type: {body_type}
+- 🎂 Age: {age}
+- 😌 Mood: {mood}
 
-{styling['format_instructions'] or "Use emojis, short fashion-forward descriptions, and structure in markdown headings."}
+{format_instructions or "Use markdown headings, short emojis, and tips specific to body type and mood."}
 """
 
     try:
+        # GPT-4o supports image input
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are a professional fashion stylist who analyzes images and provides recommendations."},
+                {"role": "system", "content": "You're a fashion stylist helping clients choose personalized looks."},
                 {
                     "role": "user",
                     "content": [
                         {"type": "text", "text": prompt},
-                        {"type": "image_url", "image_url": f"data:image/jpeg;base64,{base64_image}"}
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
                     ]
                 }
             ],
             max_tokens=1000
         )
 
-        suggestion = response.choices[0].message.content.strip()
+        suggestion = response.choices[0].message.content
 
         os.remove(filepath)
 
         return jsonify({
             "status": "success",
             "fashion_suggestion": suggestion,
-            "meta": styling
+            "meta": {
+                "occasion": occasion,
+                "season": season,
+                "gender": gender,
+                "body_type": body_type,
+                "age": age,
+                "mood": mood
+            }
         })
 
     except Exception as e:
-        print(f"Error calling OpenAI API: {str(e)}")
+        print("❌ Error:", str(e))
         if os.path.exists(filepath):
             os.remove(filepath)
-        return jsonify({"error": "Failed to get response from OpenAI", "details": str(e)}), 500
+        return jsonify({"error": "OpenAI API error", "details": str(e)}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
