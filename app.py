@@ -3,25 +3,28 @@ import os
 import base64
 import openai
 from werkzeug.utils import secure_filename
+from dotenv import load_dotenv
 
-# Load OpenAI API key from environment variable
+# Load environment variables
+load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise ValueError("ERROR: OpenAI API key is missing. Set OPENAI_API_KEY in the environment.")
 
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
-# Initialize Flask app
 app = Flask(__name__)
 
-# Create a directory to store uploaded images
+# Configuration
 UPLOAD_FOLDER = "uploads"
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
+ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Function to convert image to Base64
 def encode_image(image_path):
     try:
         with open(image_path, "rb") as image_file:
@@ -30,107 +33,112 @@ def encode_image(image_path):
         print(f"Error encoding image: {str(e)}")
         return None
 
-# Home route for testing
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"message": "StyleSync Backend is Live!"})
+    return jsonify({"status": "ready", "version": "2.0"})
 
-# Upload endpoint
 @app.route("/upload", methods=["POST"])
 def upload_image():
-    if "file" not in request.files:
-        return jsonify({"error": "No file uploaded"}), 400
-
-    file = request.files["file"]
-    if file.filename == "":
+    # Validate file
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
+    
+    if not allowed_file(file.filename):
+        return jsonify({"error": "Invalid file type"}), 400
 
-    # Get additional form data
-    occasion = request.form.get("occasion", "Any")
-    season = request.form.get("season", "Any")
-    age_group = request.form.get("age", "Any")
-    mood = request.form.get("mood", "Neutral")
+    # Get all styling parameters
+    styling_params = {
+        "occasion": request.form.get("occasion", "Casual"),
+        "season": request.form.get("season", "Any"),
+        "gender": request.form.get("gender", "Woman"),
+        "body_type": request.form.get("body_type", "Average"),
+        "age": request.form.get("age", "20s"),
+        "mood": request.form.get("mood", "Confident"),
+        "format_instructions": request.form.get("format_instructions", "")
+    }
 
-    # Save uploaded image
+    # Save file
     filename = secure_filename(file.filename)
-    filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     file.save(filepath)
-
+    
+    # Process image
     base64_image = encode_image(filepath)
     if not base64_image:
-        return jsonify({"error": "Failed to process image"}), 500
+        return jsonify({"error": "Image processing failed"}), 500
 
-    # Send to OpenAI
-    try:
-        
+    # Generate fashion prompt
     prompt = f"""
-As Creative Director of a luxury fashion house, transform this single item into a head-to-toe look worthy of a Vogue editorial. 
+As Creative Director of {styling_params['gender']}'s fashion at Vogue, create 2 complete looks based on:
+- 👗 Body Type: {styling_params['body_type']}-optimized silhouettes
+- 🎯 Occasion: {styling_params['occasion']}-appropriate styling
+- 🌦️ Season: {styling_params['season']}-specific fabrics
+- 😌 Mood: {styling_params['mood']}-enhancing colors
+- 👑 Age: {styling_params['age']}-relevant trends
 
-**Client Brief:**
-- 📍 Location Influence: {region}-inspired details (e.g., Parisian tailoring, Tokyo streetwear)
-- 🎯 Occasion: {occasion}-appropriate with a fashion-forward twist  
-- 🌦️ Season: {season}-optimized fabrics and layering  
-- 👑 Age: {age_group}-flattering silhouettes  
-- 😌 Mood: {mood}-enhancing color psychology  
+**Structure each look with:**
+1. ✨ THEME: 2-word aesthetic
+2. 🧥 OUTFIT: 3-5 pieces with technical details
+3. 📏 FIT HACK: {styling_params['body_type']}-specific trick
+4. 💎 ACCENTS: 3 curated accessories
+5. ⚡ IMPACT: How this elevates the wearer
 
-**Deliverables (Strict Markdown Format):**
+Format exactly as:
+## LOOK 1: [Theme]
+- ✨ Vibe: [description]
+- 👕 Top: [item] + [fabric] + [styling tip]
+- 👖 Bottom: [item] + [fit note] 
+- 👟 Shoes: [type] + [functional benefit]
+- 📏 Fit Hack: [specific to {styling_params['body_type']}]
+- 💎 Accents: 1) [item] 2) [item] 3) [item]
+- ⚡ Why: [confidence/mood boost]
 
-**🖤 Signature Look:**  
-*(1-line theme summary, e.g., "Modern minimalism with Baroque accents")*  
+## LOOK 2: [Different Theme]
+[Same structure]
 
-**🔍 Style Breakdown:**  
-- **Top:** [Designer-inspired pairing] + [fabric detail]  
-  *(e.g., "Bottega-inspired knit vest over the shirt for texture play")*  
-- **Bottoms:** [Trend-aware bottom] + [styling tip]  
-  *(e.g., "Wide-leg trousers (cuffed to show ankle) — Balenciaga SS24 vibe")*  
-- **Shoes:** [Seasonal statement footwear] + [functional note]  
-  *(e.g., "Prada platform loafers: elevates height + all-day comfort")*  
-- **Outerwear:** [Weather-appropriate topper] + [cultural nod]  
-  *(e.g., "Oversized blazer (Italian wool) — Milanese power dressing")*  
-- **Accessories:**  
-  - [Signature piece] *(e.g., "Vintage Cartier tank watch")*  
-  - [Functional add-on] *(e.g., "Acne Studios tote fits a laptop")*  
-  - [Trend accent] *(e.g., "Chunky chain necklace à la Bella Hadid")*  
-
-**💎 Pro Secret:**  
-*(1 insider tip, e.g., "Tuck just the front for leg-lengthening effect")*  
-
-**✨ Final Note:**  
-"(Mood-boosting affirmation, e.g., 'This look will turn sidewalks into runways—own it!')"  
-
-**Rules:**  
-1. Use ONLY the markdown headings above  
-2. Never suggest "pair with jeans" without specifics  
-3. Mention at least 1 regional trend reference  
-4. Current season ({season}) trends must be visible  
-5. Mood must reflect in color/fabric choices  
+💡 Universal Tip: Cross-seasonal styling advice
 """
-)
+
+    try:
+        # Call OpenAI with image and enhanced prompt
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4-vision-preview",
             messages=[
-                {"role": "system", "content": "You are a fashion expert. Give stylish and practical fashion suggestions."},
-                {"role": "user", "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-                ]}
+                {
+                    "role": "system",
+                    "content": "You are a senior fashion stylist specializing in personalized looks."
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": f"data:image/jpeg;base64,{base64_image}"
+                        }
+                    ]
+                }
             ],
-            max_tokens=300
+            max_tokens=1000
         )
 
-        fashion_advice = response.choices[0].message.content
+        # Clean up
+        os.remove(filepath)
 
         return jsonify({
-            "message": "Image uploaded successfully",
-            "filename": filename,
-            "fashion_suggestion": fashion_advice
+            "status": "success",
+            "fashion_suggestion": response.choices[0].message.content,
+            "meta": styling_params
         })
 
     except Exception as e:
-        print(f"Error calling OpenAI API: {str(e)}")
-        return jsonify({"error": "Failed to get response from OpenAI"}), 500
+        print(f"API Error: {str(e)}")
+        return jsonify({"error": "Fashion engine overloaded", "details": str(e)}), 500
 
-# Run the app
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=False)
