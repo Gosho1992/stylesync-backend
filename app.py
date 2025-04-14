@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify 
 import os
 import base64
 import openai
@@ -50,6 +50,7 @@ def upload_image():
     season = request.form.get("season", "Any")
     age_group = request.form.get("age", "Any")
     mood = request.form.get("mood", "Neutral")
+    region = request.form.get("region", "Global")
 
     # Save uploaded image
     filename = secure_filename(file.filename)
@@ -60,14 +61,12 @@ def upload_image():
     if not base64_image:
         return jsonify({"error": "Failed to process image"}), 500
 
-    # Send to OpenAI
     try:
-        
-    prompt = f"""
-As Creative Director of a luxury fashion house, transform this single item into a head-to-toe look worthy of a Vogue editorial. 
+        prompt = f"""
+As Creative Director of a luxury fashion house, transform this single item into a head-to-toe look worthy of a Vogue editorial.
 
 **Client Brief:**
-- 📍 Location Influence: {region}-inspired details (e.g., Parisian tailoring, Tokyo streetwear)
+- 📍 Location Influence: {region}-inspired details
 - 🎯 Occasion: {occasion}-appropriate with a fashion-forward twist  
 - 🌦️ Season: {season}-optimized fabrics and layering  
 - 👑 Age: {age_group}-flattering silhouettes  
@@ -76,46 +75,38 @@ As Creative Director of a luxury fashion house, transform this single item into 
 **Deliverables (Strict Markdown Format):**
 
 **🖤 Signature Look:**  
-*(1-line theme summary, e.g., "Modern minimalism with Baroque accents")*  
+*(1-line theme summary)*  
 
 **🔍 Style Breakdown:**  
 - **Top:** [Designer-inspired pairing] + [fabric detail]  
-  *(e.g., "Bottega-inspired knit vest over the shirt for texture play")*  
 - **Bottoms:** [Trend-aware bottom] + [styling tip]  
-  *(e.g., "Wide-leg trousers (cuffed to show ankle) — Balenciaga SS24 vibe")*  
 - **Shoes:** [Seasonal statement footwear] + [functional note]  
-  *(e.g., "Prada platform loafers: elevates height + all-day comfort")*  
 - **Outerwear:** [Weather-appropriate topper] + [cultural nod]  
-  *(e.g., "Oversized blazer (Italian wool) — Milanese power dressing")*  
 - **Accessories:**  
-  - [Signature piece] *(e.g., "Vintage Cartier tank watch")*  
-  - [Functional add-on] *(e.g., "Acne Studios tote fits a laptop")*  
-  - [Trend accent] *(e.g., "Chunky chain necklace à la Bella Hadid")*  
+  - [Signature piece]  
+  - [Functional add-on]  
+  - [Trend accent]  
 
 **💎 Pro Secret:**  
-*(1 insider tip, e.g., "Tuck just the front for leg-lengthening effect")*  
+*(1 insider tip)*  
 
 **✨ Final Note:**  
-"(Mood-boosting affirmation, e.g., 'This look will turn sidewalks into runways—own it!')"  
-
-**Rules:**  
-1. Use ONLY the markdown headings above  
-2. Never suggest "pair with jeans" without specifics  
-3. Mention at least 1 regional trend reference  
-4. Current season ({season}) trends must be visible  
-5. Mood must reflect in color/fabric choices  
+*(Mood-boosting affirmation)*
 """
 
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": "You are a fashion expert. Give stylish and practical fashion suggestions."},
-                {"role": "user", "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-                ]}
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                    ]
+                }
             ],
-            max_tokens=300
+            max_tokens=1000
         )
 
         fashion_advice = response.choices[0].message.content
@@ -128,9 +119,9 @@ As Creative Director of a luxury fashion house, transform this single item into 
 
     except Exception as e:
         print(f"Error calling OpenAI API: {str(e)}")
-        return jsonify({"error": "Failed to get response from OpenAI"}), 500
+        return jsonify({"error": "Failed to get response from OpenAI", "details": str(e)}), 500
 
 # Run the app
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port)
