@@ -3,11 +3,12 @@ import os
 import base64
 import openai
 from werkzeug.utils import secure_filename
+from time import sleep
 
 # Configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
-    raise ValueError("ERROR: OpenAI API key is missing.")
+    raise ValueError("API key missing")
 
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 app = Flask(__name__)
@@ -16,115 +17,114 @@ UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-def encode_image(image_path):
-    try:
-        with open(image_path, "rb") as image_file:
-            return base64.b64encode(image_file.read()).decode("utf-8")
-    except Exception as e:
-        print(f"Error encoding image: {str(e)}")
-        return None
-
-@app.route("/", methods=["GET"])
-def home():
-    return jsonify({"status": "ready", "model": "gpt-4o"})
+def process_image(file):
+    filename = secure_filename(file.filename)
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    file.save(filepath)
+    
+    with open(filepath, "rb") as image_file:
+        encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
+    
+    os.remove(filepath)
+    return encoded_image
 
 @app.route("/upload", methods=["POST"])
 def upload_image():
     if 'file' not in request.files:
-        return jsonify({"error": "No file uploaded"}), 400
+        return jsonify({"error": "No file"}), 400
 
     file = request.files['file']
-    if file.filename == '' or not allowed_file(file.filename):
-        return jsonify({"error": "Invalid file"}), 400
-
-    # Save file
-    filename = secure_filename(file.filename)
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(filepath)
-
-    # Get styling parameters
-    styling_params = {
-        "occasion": request.form.get("occasion", "Casual"),
-        "season": request.form.get("season", "Any"),
-        "gender": request.form.get("gender", "Woman"),
-        "body_type": request.form.get("body_type", "Average"),
-        "age": request.form.get("age", "20s"),
-        "mood": request.form.get("mood", "Confident")
-    }
-
-    base64_image = encode_image(filepath)
-    if not base64_image:
-        return jsonify({"error": "Image processing failed"}), 500
-
-    # Enhanced prompt with strict formatting
-    prompt = f"""
-As {styling_params['gender']}'s Creative Director at Vogue, create 2 looks focusing on:
-- Body Type: {styling_params['body_type']}-specific fits
-- Mood: {styling_params['mood']}-enhancing colors
-- Season: {styling_params['season']}-appropriate fabrics
-
-**Required Format (NO deviations):**
-
-LOOK 1: [2-Word Theme Name]
-✨ Vibe: [mood descriptor]
-👕 Top: [item] + [fabric] + [styling tip]
-👖 Bottom: [item] + [fit detail] 
-👟 Shoes: [type] + [functional benefit]
-🧥 Layers: [item] + [weather adaptation]
-💎 Accents: 1) [item] 2) [item] 3) [item]
-📏 Fit Hack: {styling_params['body_type']}-specific trick
-
-LOOK 2: [Different Theme]
-[Same structure as above]
-
-⚡ Style Tip: Cross-item styling advice
-"""
+    if not file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
+        return jsonify({"error": "Invalid file type"}), 400
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o",  # Maintained as requested
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a precise fashion stylist. Follow formatting exactly."
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
+        # Process image and form data
+        base64_image = process_image(file)
+        styling_data = {
+            "occasion": request.form.get("occasion", "Casual"),
+            "season": request.form.get("season", "Any"),
+            "gender": request.form.get("gender", "Woman"),
+            "body_type": request.form.get("body_type", "Average"),
+            "age": request.form.get("age", "20s"),
+            "mood": request.form.get("mood", "Confident")
+        }
+
+        # Enhanced prompt with fallback instructions
+        prompt = f"""As Vogue's lead stylist, create 2 looks for:
+- {styling_data['gender']} aged {styling_data['age']}
+- Body type: {styling_data['body_type']}
+- Mood: {styling_data['mood']}
+- Season: {styling_data['season']}
+- Occasion: {styling_data['occasion']}
+
+Format strictly as:
+
+LOOK 1: [Theme Name]
+✨ Vibe: [2-3 words]
+👕 Top: [Item] + [Detail]
+👖 Bottom: [Item] + [Detail]
+👟 Shoes: [Type] + [Benefit]
+🧥 Layers: [Item] + [Weather Note]
+💎 Accents: 1) [Item] 2) [Item] 3) [Item]
+📏 Fit Hack: {styling_data['body_type']}-specific tip
+
+LOOK 2: [Different Theme]
+[Same structure]
+
+⚡ Pro Tip: [Cross-outfit advice]"""
+
+        # Retry mechanism
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
                         {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{base64_image}",
-                                "detail": "high"
-                            }
+                            "role": "system", 
+                            "content": "You are a precise fashion AI. Never say you can't suggest outfits."
+                        },
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": prompt},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{base64_image}",
+                                        "detail": "auto"
+                                    }
+                                }
+                            ]
                         }
-                    ]
-                }
-            ],
-            temperature=0.7,  # Controls creativity vs precision
-            max_tokens=1200
-        )
+                    ],
+                    temperature=0.7,
+                    max_tokens=1200
+                )
+                
+                suggestion = response.choices[0].message.content
+                if "LOOK 1:" in suggestion and "LOOK 2:" in suggestion:
+                    return jsonify({
+                        "status": "success",
+                        "suggestion": suggestion,
+                        "meta": styling_data
+                    })
+                
+                sleep(1)  # Wait before retry
 
-        # Clean up
-        os.remove(filepath)
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise e
+                sleep(2)
+                continue
 
-        return jsonify({
-            "status": "success",
-            "suggestion": response.choices[0].message.content,
-            "meta": styling_params
-        })
+        return jsonify({"error": "Incomplete suggestions"}), 500
 
     except Exception as e:
-        if os.path.exists(filepath):
-            os.remove(filepath)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            "error": "Styling service unavailable",
+            "details": str(e)
+        }), 500
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
