@@ -4,13 +4,12 @@ import base64
 import openai
 from werkzeug.utils import secure_filename
 
-# Load your API key
+# Configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise ValueError("ERROR: OpenAI API key is missing.")
 
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
-
 app = Flask(__name__)
 
 UPLOAD_FOLDER = "uploads"
@@ -32,7 +31,7 @@ def encode_image(image_path):
 
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"message": "✅ StyleSync backend running", "version": "2.0"})
+    return jsonify({"status": "ready", "model": "gpt-4o"})
 
 @app.route("/upload", methods=["POST"])
 def upload_image():
@@ -48,69 +47,83 @@ def upload_image():
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     file.save(filepath)
 
-    # Get styling inputs
-    occasion = request.form.get("occasion", "Casual")
-    season = request.form.get("season", "Any")
-    gender = request.form.get("gender", "Woman")
-    body_type = request.form.get("body_type", "Average")
-    age = request.form.get("age", "20s")
-    mood = request.form.get("mood", "Confident")
-    format_instructions = request.form.get("format_instructions", "")
+    # Get styling parameters
+    styling_params = {
+        "occasion": request.form.get("occasion", "Casual"),
+        "season": request.form.get("season", "Any"),
+        "gender": request.form.get("gender", "Woman"),
+        "body_type": request.form.get("body_type", "Average"),
+        "age": request.form.get("age", "20s"),
+        "mood": request.form.get("mood", "Confident")
+    }
 
     base64_image = encode_image(filepath)
     if not base64_image:
         return jsonify({"error": "Image processing failed"}), 500
 
+    # Enhanced prompt with strict formatting
     prompt = f"""
-As Creative Director of {gender}'s fashion at Vogue, design 2 stunning outfits using:
-- 🎯 Occasion: {occasion}
-- 🌦️ Season: {season}
-- 🧍 Body Type: {body_type}
-- 🎂 Age: {age}
-- 😌 Mood: {mood}
+As {styling_params['gender']}'s Creative Director at Vogue, create 2 looks focusing on:
+- Body Type: {styling_params['body_type']}-specific fits
+- Mood: {styling_params['mood']}-enhancing colors
+- Season: {styling_params['season']}-appropriate fabrics
 
-{format_instructions or "Use markdown headings, short emojis, and tips specific to body type and mood."}
+**Required Format (NO deviations):**
+
+LOOK 1: [2-Word Theme Name]
+✨ Vibe: [mood descriptor]
+👕 Top: [item] + [fabric] + [styling tip]
+👖 Bottom: [item] + [fit detail] 
+👟 Shoes: [type] + [functional benefit]
+🧥 Layers: [item] + [weather adaptation]
+💎 Accents: 1) [item] 2) [item] 3) [item]
+📏 Fit Hack: {styling_params['body_type']}-specific trick
+
+LOOK 2: [Different Theme]
+[Same structure as above]
+
+⚡ Style Tip: Cross-item styling advice
 """
 
     try:
-        # GPT-4o supports image input
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o",  # Maintained as requested
             messages=[
-                {"role": "system", "content": "You're a fashion stylist helping clients choose personalized looks."},
+                {
+                    "role": "system",
+                    "content": "You are a precise fashion stylist. Follow formatting exactly."
+                },
                 {
                     "role": "user",
                     "content": [
                         {"type": "text", "text": prompt},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}",
+                                "detail": "high"
+                            }
+                        }
                     ]
                 }
             ],
-            max_tokens=1000
+            temperature=0.7,  # Controls creativity vs precision
+            max_tokens=1200
         )
 
-        suggestion = response.choices[0].message.content
-
+        # Clean up
         os.remove(filepath)
 
         return jsonify({
             "status": "success",
-            "fashion_suggestion": suggestion,
-            "meta": {
-                "occasion": occasion,
-                "season": season,
-                "gender": gender,
-                "body_type": body_type,
-                "age": age,
-                "mood": mood
-            }
+            "suggestion": response.choices[0].message.content,
+            "meta": styling_params
         })
 
     except Exception as e:
-        print("❌ Error:", str(e))
         if os.path.exists(filepath):
             os.remove(filepath)
-        return jsonify({"error": "OpenAI API error", "details": str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
