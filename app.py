@@ -3,52 +3,96 @@ import os
 import base64
 import openai
 from werkzeug.utils import secure_filename
-from time import sleep
 
-# Load OpenAI API Key
+# Configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    raise ValueError("Set your OPENAI_API_KEY in environment.")
-
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
-
 app = Flask(__name__)
+
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-# ---------- Utils ----------
-def process_image(file):
-    filename = secure_filename(file.filename)
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(filepath)
-    
-    with open(filepath, "rb") as image_file:
-        encoded = base64.b64encode(image_file.read()).decode('utf-8')
-    
-    os.remove(filepath)
-    return encoded
+# Global Style Matrix
+STYLE_PROFILES = {
+    "south_asian": {
+        "keywords": ["kurti", "salwar", "lehenga", "sari", "jhumka"],
+        "prompt": """Suggest authentic South Asian styling with:
+        - Traditional garment names
+        - Regional fabric knowledge
+        - Cultural occasion guidance
+        - Jewelry pairings"""
+    },
+    "east_asian": {
+        "keywords": ["hanbok", "qipao", "kimono", "samfu"],
+        "prompt": """Recommend East Asian fashion with:
+        - Proper garment terminology
+        - Seasonal considerations
+        - Modern fusion ideas"""
+    },
+    "western": {
+        "keywords": ["blazer", "jeans", "dress", "sneakers"],
+        "prompt": """Suggest contemporary Western looks with:
+        - Current runway trends
+        - Streetwear influences
+        - Brand references"""
+    },
+    "middle_eastern": {
+        "keywords": ["thobe", "abaya", "kandura", "keffiyeh"],
+        "prompt": """Style Middle Eastern attire with:
+        - Cultural modesty standards
+        - Luxury fabric choices
+        - Occasion-specific details"""
+    },
+    "african": {
+        "keywords": ["dashiki", "kitenge", "gele", "boubou"],
+        "prompt": """Celebrate African fashion by:
+        - Incorporating bold prints and textures
+        - Reflecting heritage and identity
+        - Balancing tradition and trend"""
+    },
+    "latin_american": {
+        "keywords": ["poncho", "guayabera", "pollera", "huipil"],
+        "prompt": """Style Latin American outfits with:
+        - Vibrant cultural influences
+        - Traditional silhouettes
+        - Artisan embroidery and flair"""
+    },
+    "north_american": {
+        "keywords": ["flannel", "denim jacket", "cowboy boots", "varsity jacket"],
+        "prompt": """Channel North American fashion with:
+        - Subcultural streetwear or classic prep
+        - Layering for versatility
+        - Regional inspirations (NYC, LA, Texas)"""
+    }
+}
 
-@app.route("/", methods=["GET"])
-def home():
-    return jsonify({"status": "StyleSync AI is live", "version": "3.0"})
+def detect_style(image_b64):
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": "Classify the outfit in the image as ONE of these: south_asian, east_asian, western, middle_eastern, african, latin_american, north_american. Reply with just the keyword (no sentence)."},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "What fashion culture dominates this outfit?"},
+                    {"type": "image_url", "image_url": f"data:image/jpeg;base64,{image_b64}"}
+                ]
+            }
+        ],
+        max_tokens=100
+    )
+    return response.choices[0].message.content.strip().lower()
 
-@app.route("/ping", methods=["GET"])
-def ping():
-    return "pong", 200
-
-# ---------- Main Upload Endpoint ----------
 @app.route("/upload", methods=["POST"])
-def upload_image():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file uploaded"}), 400
-
-    file = request.files['file']
-    if not file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
-        return jsonify({"error": "Invalid image type"}), 400
-
+def upload():
     try:
-        base64_image = process_image(file)
+        file = request.files['file']
+        image_b64 = base64.b64encode(file.read()).decode('utf-8')
+
+        style = detect_style(image_b64)
+        style_profile = STYLE_PROFILES.get(style, STYLE_PROFILES["western"])
+
         filters = {
             "occasion": request.form.get("occasion", "Casual"),
             "season": request.form.get("season", "Any"),
@@ -59,79 +103,52 @@ def upload_image():
         }
 
         prompt = f"""
-You are a senior fashion stylist. Generate a personalized outfit suggestion based on:
+As a {style.replace('_', ' ').title()} Fashion Concierge, generate a culturally-inspired outfit based on the uploaded item.
+
+{style_profile['prompt']}
+
+Personalize using these traits:
+- Body Type: {filters['body_type']} (optimize fit)
+- Mood: {filters['mood']}
 - Occasion: {filters['occasion']}
 - Season: {filters['season']}
-- Gender: {filters['gender']}
-- Age Group: {filters['age']}
-- Mood: {filters['mood']}
-- Body Type: {filters['body_type']}
 
-Respond in a clean Markdown format like this:
+Format:
 
 ## Signature Look: [Theme Name]
-- ✨ **Vibe**: [2-word style tone]
-- 👕 **Top**: [item] + [fabric/cut] + [tip]
-- 👖 **Bottom**: [item] + [fit] + [reason]
-- 👟 **Shoes**: [type] + [comfort] + [season match]
-- 🧥 **Layer**: [piece] + [weather fit] + [cultural style]
-- 💎 **Accents**: 1) [item] 2) [item] 3) [item]
-- 📏 **Fit Hack**: [body-type focused tip]
-- ⚡ **Final Flair**: [closing line with energy]
+🌟 Vibe: [Mood/Style]
+👗 Garment: [Key item + detail]
+🧥 Layer: [Adaptation layer + weather]
+💎 Accents: [Three accessories with cultural touch]
+📏 Fit Tip: [Fit advice based on body type]
+⚡ Final Flair: [1-line quote to boost confidence]
 """
 
-        max_attempts = 3
-        for attempt in range(max_attempts):
-            try:
-                response = client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You are a creative yet practical fashion assistant. Always return useful suggestions."
-                        },
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "text", "text": prompt},
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:image/jpeg;base64,{base64_image}",
-                                        "detail": "auto"
-                                    }
-                                }
-                            ]
-                        }
-                    ],
-                    max_tokens=1200,
-                    temperature=0.7,
-                    timeout=20  # timeout for OpenAI response
-                )
-
-                suggestion = response.choices[0].message.content.strip()
-                if suggestion:
-                    return jsonify({
-                        "status": "success",
-                        "fashion_suggestion": suggestion,
-                        "meta": filters
-                    })
-
-            except Exception as e:
-                print(f"Retry {attempt + 1} failed: {e}")
-                sleep(2)
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a globally-minded fashion expert."},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": f"data:image/jpeg;base64,{image_b64}"}
+                    ]
+                }
+            ],
+            temperature=0.7,
+            max_tokens=1200
+        )
 
         return jsonify({
-            "error": "Fashion engine is waking up or under load. Try again in a moment."
-        }), 503
+            "status": "success",
+            "style": style,
+            "fashion_suggestion": response.choices[0].message.content,
+            "meta": filters
+        })
 
     except Exception as e:
-        print("Unexpected error:", str(e))
-        return jsonify({
-            "error": "Unexpected server error",
-            "details": str(e)
-        }), 500
+        return jsonify({"error": str(e)}), 500
 
-# ---------- Run App ----------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))

@@ -311,8 +311,11 @@ with tab1:
                         st.balloons()
                         st.success("🌟 Style Masterpiece Completed!")
                         
+                        
+
                         # Styled response box
-                        st.markdown(f"""
+                        
+                         st.markdown(f"""
                             <div style='background: linear-gradient(to right, #fdfbfb, #ebedee);
                                         padding: 2rem; border-radius: 15px;
                                         box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
