@@ -3,6 +3,7 @@ import os
 import base64
 import openai
 from werkzeug.utils import secure_filename
+import traceback
 
 # Configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -148,7 +149,14 @@ Format:
         })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        # 👇 Add this to capture the error in Render logs
+        print("❌ ERROR TRACEBACK:")
+        print(traceback.format_exc())
+
+        return jsonify({
+            "error": str(e),
+            "trace": traceback.format_exc()
+        }), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
