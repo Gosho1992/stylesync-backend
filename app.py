@@ -68,16 +68,25 @@ STYLE_PROFILES = {
     }
 }
 
+# ✅ FIXED: OpenAI Vision format
 def detect_style(image_b64):
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=[
-            {"role": "system", "content": "Classify the outfit in the image as ONE of these: south_asian, east_asian, western, middle_eastern, african, latin_american, north_american. Reply with just the keyword (no sentence)."},
+            {
+                "role": "system",
+                "content": "Classify the outfit in the image as ONE of these: south_asian, east_asian, western, middle_eastern, african, latin_american, north_american. Reply with just the keyword (no sentence)."
+            },
             {
                 "role": "user",
                 "content": [
                     {"type": "text", "text": "What fashion culture dominates this outfit?"},
-                    {"type": "image_url", "image_url": f"data:image/jpeg;base64,{image_b64}"}
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{image_b64}"
+                        }
+                    }
                 ]
             }
         ],
@@ -91,9 +100,11 @@ def upload():
         file = request.files['file']
         image_b64 = base64.b64encode(file.read()).decode('utf-8')
 
+        # Detect fashion style
         style = detect_style(image_b64)
         style_profile = STYLE_PROFILES.get(style, STYLE_PROFILES["western"])
 
+        # Filters from frontend
         filters = {
             "occasion": request.form.get("occasion", "Casual"),
             "season": request.form.get("season", "Any"),
@@ -125,6 +136,7 @@ Format:
 ⚡ Final Flair: [1-line quote to boost confidence]
 """
 
+        # Generate outfit suggestion
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
@@ -133,7 +145,12 @@ Format:
                     "role": "user",
                     "content": [
                         {"type": "text", "text": prompt},
-                        {"type": "image_url", "image_url": f"data:image/jpeg;base64,{image_b64}"}
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{image_b64}"
+                            }
+                        }
                     ]
                 }
             ],
@@ -149,10 +166,8 @@ Format:
         })
 
     except Exception as e:
-        # 👇 Add this to capture the error in Render logs
         print("❌ ERROR TRACEBACK:")
         print(traceback.format_exc())
-
         return jsonify({
             "error": str(e),
             "trace": traceback.format_exc()
