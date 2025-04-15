@@ -220,7 +220,7 @@ lang_codes = {
 # ---------- Tabs ----------
 tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Assistant", "📊 Trends"])
 
-# ---------- Tab 1: Outfit Suggestion (Fixed) ----------
+# ---------- Tab 1: Outfit Suggestion (Fixed + Translatable) ----------
 with tab1:
     st.header("👗 Personal Style Architect")
 
@@ -229,6 +229,8 @@ with tab1:
         st.session_state.uploaded_file = None
     if "suggestion" not in st.session_state:
         st.session_state.suggestion = ""
+    if "translated_suggestion" not in st.session_state:
+        st.session_state.translated_suggestion = ""
 
     # Style Preferences
     with st.expander("✨ Style Blueprint", expanded=True):
@@ -252,6 +254,7 @@ with tab1:
     if st.session_state.uploaded_file:
         st.image(Image.open(st.session_state.uploaded_file), caption="🎨 Your Style Foundation", width=300)
 
+    # Generate Suggestion
     if st.button("✨ Generate Masterpiece", type="primary", use_container_width=True):
         data = {
             "occasion": occasion,
@@ -262,19 +265,19 @@ with tab1:
             "mood": mood,
             "format_instructions": """Respond in this STRUCTURE:
 
-            ## LOOK 1: [Theme Name]
-            - ✨ **Vibe**: [2-word mood descriptor]
-            - 👕 **Top**: [Item] + [Fabric/Cut Detail] + [Styling Tip]
-            - 👖 **Bottom**: [Item] + [Fit Note] + [Trend Reference]
-            - 👟 **Shoes**: [Type] + [Height/Comfort] + [Seasonal Advice]
-            - 🧥 **Layers**: [Item] + [Weather Adaptability] + [Cultural Nod]
-            - 💎 **Accents**: [3 items with functional/personal benefits]
-            - 📏 **Fit Hack**: [Body-type specific trick]
+## LOOK 1: [Theme Name]
+- ✨ **Vibe**: [2-word mood descriptor]
+- 👕 **Top**: [Item] + [Fabric/Cut Detail] + [Styling Tip]
+- 👖 **Bottom**: [Item] + [Fit Note] + [Trend Reference]
+- 👟 **Shoes**: [Type] + [Height/Comfort] + [Seasonal Advice]
+- 🧥 **Layers**: [Item] + [Weather Adaptability] + [Cultural Nod]
+- 💎 **Accents**: [3 items with functional/personal benefits]
+- 📏 **Fit Hack**: [Body-type specific trick]
 
-            ## LOOK 2: [Different Theme]
-            [Same structure]
+## LOOK 2: [Different Theme]
+[Same structure]
 
-            💡 **Style Alchemy**: [1 transformative tip combining 2+ filters]"""
+💡 **Style Alchemy**: [1 transformative tip combining 2+ filters]"""
         }
 
         with st.spinner("🎨 Crafting your couture vision..."):
@@ -288,6 +291,7 @@ with tab1:
 
                 if response.status_code == 200:
                     st.session_state.suggestion = response.json().get("fashion_suggestion", "")
+                    st.session_state.translated_suggestion = ""  # Reset old translation
 
                     if not st.session_state.suggestion:
                         st.error("🎭 Our stylists need more inspiration! Try again.")
@@ -303,15 +307,28 @@ with tab1:
             except Exception as e:
                 st.error(f"🎭 Unexpected Artistry Failure: {str(e)}")
 
+    # Translate based on selected language
     if st.session_state.suggestion:
+        if lang_codes[language_option] != "en":
+            if not st.session_state.translated_suggestion:
+                st.session_state.translated_suggestion = translate_long_text(
+                    st.session_state.suggestion,
+                    lang_codes[language_option]
+                )
+            display_text = st.session_state.translated_suggestion
+        else:
+            display_text = st.session_state.suggestion
+
+        # Display AI output
         st.markdown(f"""
         <div style='background: linear-gradient(to right, #f8f9fa, #ffffff);
                     padding: 2rem; border-radius: 15px;
                     box-shadow: 0 4px 12px rgba(0,0,0,0.05)'>
-        {st.session_state.suggestion}
+        {display_text.replace("**", "")}
         </div>
         """, unsafe_allow_html=True)
 
+        # Style breakdown
         with st.expander("🔍 Style Breakdown", expanded=False):
             st.markdown(f"""
             | Filter | Applied Value |
@@ -324,6 +341,7 @@ with tab1:
             | Season | {season} |
             """)
 
+        # Audio version
         if st.button("🎧 Hear Your Style Story"):
             with st.spinner("Composing your fashion sonnet..."):
                 tts = gTTS(st.session_state.suggestion, lang=lang_codes[language_option])
@@ -331,6 +349,7 @@ with tab1:
                 tts.write_to_fp(audio_bytes)
                 audio_bytes.seek(0)
                 st.audio(audio_bytes, format="audio/mp3")
+
 
 # ---------- Tab 2: Travel Assistant ----------
 with tab2:
