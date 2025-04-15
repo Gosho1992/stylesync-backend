@@ -220,120 +220,117 @@ lang_codes = {
 # ---------- Tabs ----------
 tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Assistant", "📊 Trends"])
 
-# ---------- Tab 1: Outfit Suggestion ----------
+# ---------- Tab 1: Outfit Suggestion (Fixed) ----------
 with tab1:
     st.header("👗 Personal Style Architect")
-    
+
+    # Persist selections
+    if "uploaded_file" not in st.session_state:
+        st.session_state.uploaded_file = None
+    if "suggestion" not in st.session_state:
+        st.session_state.suggestion = ""
+
     # Style Preferences
     with st.expander("✨ Style Blueprint", expanded=True):
         col1, col2, col3 = st.columns(3)
         with col1:
-            occasion = st.selectbox("🎯 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work", "Date"], 
-                                  key="occasion1")
-            season = st.selectbox("🌦️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn", "Monsoon"], 
-                                key="season1")
+            occasion = st.selectbox("🎯 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work", "Date"], key="occasion1")
+            season = st.selectbox("🌦️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn", "Monsoon"], key="season1")
         with col2:
-            gender = st.selectbox("🚻 Gender", ["Woman", "Man", "Non-binary", "Prefer not to say"], 
-                                key="gender1")
-            body_type = st.selectbox("🧍 Body Type", ["Petite", "Tall", "Plus-size", "Athletic", "Average", "Curvy"], 
-                                   key="bodytype1")
+            gender = st.selectbox("🚻 Gender", ["Woman", "Man", "Non-binary", "Prefer not to say"], key="gender1")
+            body_type = st.selectbox("🧍 Body Type", ["Petite", "Tall", "Plus-size", "Athletic", "Average", "Curvy"], key="bodytype1")
         with col3:
-            age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+", "60+"], 
-                             key="age1")
-            mood = st.selectbox("😌 Mood", ["Happy", "Lazy", "Motivated", "Romantic", "Confident", 
-                                          "Chill", "Adventurous", "Classy", "Energetic", "Bold", 
-                                          "Elegant", "Sophisticated", "Edgy"], 
-                             key="mood1")
+            age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+", "60+"], key="age1")
+            mood = st.selectbox("😌 Mood", ["Happy", "Lazy", "Motivated", "Romantic", "Confident", "Chill", "Adventurous", "Classy", "Energetic", "Bold", "Elegant", "Sophisticated", "Edgy"], key="mood1")
 
     # Image Upload
     uploaded_file = st.file_uploader("📸 Upload Your Style Canvas", type=["jpg", "jpeg", "png"],
-                                   help="For best results, use well-lit front-facing images")
-    
+                                     help="For best results, use well-lit front-facing images")
     if uploaded_file:
-        st.image(Image.open(uploaded_file), caption="🎨 Your Style Foundation", width=300)
+        st.session_state.uploaded_file = uploaded_file
 
-        if st.button("✨ Generate Masterpiece", type="primary", use_container_width=True):
-            # Prepare request data
-            data = {
-                "occasion": occasion,
-                "season": season,
-                "gender": gender,
-                "body_type": body_type,
-                "age": age,
-                "mood": mood,
-                "format_instructions": """Respond in this STRUCTURE:
+    if st.session_state.uploaded_file:
+        st.image(Image.open(st.session_state.uploaded_file), caption="🎨 Your Style Foundation", width=300)
 
-                ## LOOK 1: [Theme Name]
-                - ✨ **Vibe**: [2-word mood descriptor]
-                - 👕 **Top**: [Item] + [Fabric/Cut Detail] + [Styling Tip]
-                - 👖 **Bottom**: [Item] + [Fit Note] + [Trend Reference]
-                - 👟 **Shoes**: [Type] + [Height/Comfort] + [Seasonal Advice]
-                - 🧥 **Layers**: [Item] + [Weather Adaptability] + [Cultural Nod]
-                - 💎 **Accents**: [3 items with functional/personal benefits]
-                - 📏 **Fit Hack**: [Body-type specific trick]
+    if st.button("✨ Generate Masterpiece", type="primary", use_container_width=True):
+        data = {
+            "occasion": occasion,
+            "season": season,
+            "gender": gender,
+            "body_type": body_type,
+            "age": age,
+            "mood": mood,
+            "format_instructions": """Respond in this STRUCTURE:
 
-                ## LOOK 2: [Different Theme]
-                [Same structure]
+            ## LOOK 1: [Theme Name]
+            - ✨ **Vibe**: [2-word mood descriptor]
+            - 👕 **Top**: [Item] + [Fabric/Cut Detail] + [Styling Tip]
+            - 👖 **Bottom**: [Item] + [Fit Note] + [Trend Reference]
+            - 👟 **Shoes**: [Type] + [Height/Comfort] + [Seasonal Advice]
+            - 🧥 **Layers**: [Item] + [Weather Adaptability] + [Cultural Nod]
+            - 💎 **Accents**: [3 items with functional/personal benefits]
+            - 📏 **Fit Hack**: [Body-type specific trick]
 
-                💡 **Style Alchemy**: [1 transformative tip combining 2+ filters]"""
-            }
+            ## LOOK 2: [Different Theme]
+            [Same structure]
 
-            with st.spinner("🎨 Crafting your couture vision..."):
-                try:
-                    response = requests.post(
-                        "https://stylesync-backend-2kz6.onrender.com/upload",
-                        files={'file': ('image.jpg', uploaded_file.getvalue(), 'image/jpeg')},
-                        data=data,
-                        timeout=20
-                    )
+            💡 **Style Alchemy**: [1 transformative tip combining 2+ filters]"""
+        }
 
-                    if response.status_code == 200:
-                        suggestion = response.json().get("fashion_suggestion", "")
-                        
-                        if not suggestion:
-                            st.error("🎭 Our stylists need more inspiration! Try again.")
-                        else:
-                            st.balloons()
-                            st.success("🌟 Style Masterpiece Completed!")
-                            
-                            # Display the suggestion
-                            st.markdown(f"""
-                            <div style='background: linear-gradient(to right, #f8f9fa, #ffffff);
-                                        padding: 2rem; border-radius: 15px;
-                                        box-shadow: 0 4px 12px rgba(0,0,0,0.05)'>
-                            {suggestion}
-                            </div>
-                            """, unsafe_allow_html=True)
-                            
-                            # Style breakdown
-                            with st.expander("🔍 Style Breakdown", expanded=False):
-                                st.markdown(f"""
-                                | Filter | Applied Value |
-                                |--------|---------------|
-                                | Gender | {gender} |
-                                | Body Type | {body_type} |
-                                | Age | {age} |
-                                | Mood | {mood} |
-                                | Occasion | {occasion} |
-                                | Season | {season} |
-                                """)
-                            
-                            # Audio version
-                            if st.button("🎧 Hear Your Style Story"):
-                                with st.spinner("Composing your fashion sonnet..."):
-                                    tts = gTTS(suggestion, lang=lang_codes[language_option])
-                                    audio_bytes = io.BytesIO()
-                                    tts.write_to_fp(audio_bytes)
-                                    audio_bytes.seek(0)
-                                    st.audio(audio_bytes, format="audio/mp3")
-                    
+        with st.spinner("🎨 Crafting your couture vision..."):
+            try:
+                response = requests.post(
+                    "https://stylesync-backend-2kz6.onrender.com/upload",
+                    files={'file': ('image.jpg', st.session_state.uploaded_file.getvalue(), 'image/jpeg')},
+                    data=data,
+                    timeout=20
+                )
+
+                if response.status_code == 200:
+                    st.session_state.suggestion = response.json().get("fashion_suggestion", "")
+
+                    if not st.session_state.suggestion:
+                        st.error("🎭 Our stylists need more inspiration! Try again.")
                     else:
-                        st.error(f"⚠️ Creative Block (Error {response.status_code})")
-                
-                except requests.exceptions.RequestException:
-                    st.error("🌐 Connection Error: The fashion universe is unreachable")
-                except Exception as e:
-                    st.error(f"🎭 Unexpected Artistry Failure: {str(e)}")
+                        st.balloons()
+                        st.success("🌟 Style Masterpiece Completed!")
+
+                else:
+                    st.error(f"⚠️ Creative Block (Error {response.status_code})")
+
+            except requests.exceptions.RequestException:
+                st.error("🌐 Connection Error: The fashion universe is unreachable")
+            except Exception as e:
+                st.error(f"🎭 Unexpected Artistry Failure: {str(e)}")
+
+    if st.session_state.suggestion:
+        st.markdown(f"""
+        <div style='background: linear-gradient(to right, #f8f9fa, #ffffff);
+                    padding: 2rem; border-radius: 15px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.05)'>
+        {st.session_state.suggestion}
+        </div>
+        """, unsafe_allow_html=True)
+
+        with st.expander("🔍 Style Breakdown", expanded=False):
+            st.markdown(f"""
+            | Filter | Applied Value |
+            |--------|---------------|
+            | Gender | {gender} |
+            | Body Type | {body_type} |
+            | Age | {age} |
+            | Mood | {mood} |
+            | Occasion | {occasion} |
+            | Season | {season} |
+            """)
+
+        if st.button("🎧 Hear Your Style Story"):
+            with st.spinner("Composing your fashion sonnet..."):
+                tts = gTTS(st.session_state.suggestion, lang=lang_codes[language_option])
+                audio_bytes = io.BytesIO()
+                tts.write_to_fp(audio_bytes)
+                audio_bytes.seek(0)
+                st.audio(audio_bytes, format="audio/mp3")
 
 # ---------- Tab 2: Travel Assistant ----------
 with tab2:
