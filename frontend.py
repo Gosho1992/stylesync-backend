@@ -220,7 +220,7 @@ lang_codes = {
 # ---------- Tabs ----------
 tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Assistant", "📊 Trends"])
 
-# ---------- Tab 1: Outfit Suggestion (Fixed + Translatable) ----------
+# ---------- Tab 1: Outfit Suggestion (Fixed Formatting) ----------
 with tab1:
     st.header("👗 Personal Style Architect")
 
@@ -232,7 +232,7 @@ with tab1:
     if "translated_suggestion" not in st.session_state:
         st.session_state.translated_suggestion = ""
 
-    # Style Preferences
+    # Style Preferences - Cleaner layout
     with st.expander("✨ Style Blueprint", expanded=True):
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -245,16 +245,23 @@ with tab1:
             age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+", "60+"], key="age1")
             mood = st.selectbox("😌 Mood", ["Happy", "Lazy", "Motivated", "Romantic", "Confident", "Chill", "Adventurous", "Classy", "Energetic", "Bold", "Elegant", "Sophisticated", "Edgy"], key="mood1")
 
-    # Image Upload
-    uploaded_file = st.file_uploader("📸 Upload Your Style Canvas", type=["jpg", "jpeg", "png"],
-                                     help="For best results, use well-lit front-facing images")
+    # Image Upload - Consistent styling
+    uploaded_file = st.file_uploader(
+        "📸 Upload Your Style Canvas", 
+        type=["jpg", "jpeg", "png"],
+        help="For best results, use well-lit front-facing images"
+    )
     if uploaded_file:
         st.session_state.uploaded_file = uploaded_file
 
     if st.session_state.uploaded_file:
-        st.image(Image.open(st.session_state.uploaded_file), caption="🎨 Your Style Foundation", width=300)
+        st.image(
+            Image.open(st.session_state.uploaded_file), 
+            caption="🎨 Your Style Foundation", 
+            width=300
+        )
 
-    # Generate Suggestion
+    # Generate Suggestion - Improved format instructions
     if st.button("✨ Generate Masterpiece", type="primary", use_container_width=True):
         data = {
             "occasion": occasion,
@@ -263,21 +270,14 @@ with tab1:
             "body_type": body_type,
             "age": age,
             "mood": mood,
-            "format_instructions": """Respond in this STRUCTURE:
-
-## LOOK 1: [Theme Name]
-- ✨ **Vibe**: [2-word mood descriptor]
-- 👕 **Top**: [Item] + [Fabric/Cut Detail] + [Styling Tip]
-- 👖 **Bottom**: [Item] + [Fit Note] + [Trend Reference]
-- 👟 **Shoes**: [Type] + [Height/Comfort] + [Seasonal Advice]
-- 🧥 **Layers**: [Item] + [Weather Adaptability] + [Cultural Nod]
-- 💎 **Accents**: [3 items with functional/personal benefits]
-- 📏 **Fit Hack**: [Body-type specific trick]
-
-## LOOK 2: [Different Theme]
-[Same structure]
-
-💡 **Style Alchemy**: [1 transformative tip combining 2+ filters]"""
+            "format_instructions": """Respond in Markdown with:
+            ## [Theme Name]
+            - **Vibe**: [Mood descriptor]
+            - **Top**: [Item] + [Details]
+            - **Bottom**: [Item] + [Fit Note]
+            - **Shoes**: [Type] + [Seasonal Advice]
+            - **Accents**: 3 items with benefits
+            - **Fit Hack**: [Body-type specific tip]"""
         }
 
         with st.spinner("🎨 Crafting your couture vision..."):
@@ -291,14 +291,13 @@ with tab1:
 
                 if response.status_code == 200:
                     st.session_state.suggestion = response.json().get("fashion_suggestion", "")
-                    st.session_state.translated_suggestion = ""  # Reset old translation
+                    st.session_state.translated_suggestion = ""  # Reset translation
 
                     if not st.session_state.suggestion:
                         st.error("🎭 Our stylists need more inspiration! Try again.")
                     else:
                         st.balloons()
                         st.success("🌟 Style Masterpiece Completed!")
-
                 else:
                     st.error(f"⚠️ Creative Block (Error {response.status_code})")
 
@@ -307,8 +306,9 @@ with tab1:
             except Exception as e:
                 st.error(f"🎭 Unexpected Artistry Failure: {str(e)}")
 
-    # Translate based on selected language
+    # Display Output - Fixed formatting
     if st.session_state.suggestion:
+        # Handle translation
         if lang_codes[language_option] != "en":
             if not st.session_state.translated_suggestion:
                 st.session_state.translated_suggestion = translate_long_text(
@@ -319,37 +319,30 @@ with tab1:
         else:
             display_text = st.session_state.suggestion
 
-        # Display AI output
-        st.markdown(f"""
-        <div style='background: linear-gradient(to right, #f8f9fa, #ffffff);
-                    padding: 2rem; border-radius: 15px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.05)'>
-        {display_text.replace("**", "")}
-        </div>
-        """, unsafe_allow_html=True)
+        # Improved output container
+        st.markdown("### ✨ Your Style Masterpiece")
+        st.markdown("---")
+        st.markdown(display_text)  # Proper Markdown rendering
+        st.markdown("---")
 
-        # Style breakdown
+        # Style breakdown - Native table
         with st.expander("🔍 Style Breakdown", expanded=False):
-            st.markdown(f"""
-            | Filter | Applied Value |
-            |--------|---------------|
-            | Gender | {gender} |
-            | Body Type | {body_type} |
-            | Age | {age} |
-            | Mood | {mood} |
-            | Occasion | {occasion} |
-            | Season | {season} |
-            """)
+            st.table({
+                "Filter": ["Gender", "Body Type", "Age", "Mood", "Occasion", "Season"],
+                "Applied Value": [gender, body_type, age, mood, occasion, season]
+            })
 
-        # Audio version
+        # Audio version - Preserved original
         if st.button("🎧 Hear Your Style Story"):
             with st.spinner("Composing your fashion sonnet..."):
-                tts = gTTS(st.session_state.suggestion, lang=lang_codes[language_option])
+                tts = gTTS(
+                    text=st.session_state.suggestion,
+                    lang=lang_codes[language_option]
+                )
                 audio_bytes = io.BytesIO()
                 tts.write_to_fp(audio_bytes)
                 audio_bytes.seek(0)
                 st.audio(audio_bytes, format="audio/mp3")
-
 
 # ---------- Tab 2: Travel Assistant ----------
 with tab2:
