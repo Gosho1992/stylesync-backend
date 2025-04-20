@@ -182,8 +182,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---------- Sidebar ----------
-st.sidebar.image("https://i.imgur.com/y0ywLko.jpeg", width=100)
-st.sidebar.title("👗 StyleSync AI")
+st.sidebar.image("assets/stylewithai_logo.png", width=100)
+st.sidebar.title("👗 Stylewithai")
 st.sidebar.markdown("""
 Your AI-powered fashion assistant 👚  
 Upload your clothing item and get personalized fashion advice ✨
