@@ -1,4 +1,4 @@
-# ✅ Corrected frontend.py with all indentation fixes
+# ✅ Corrected frontend.py with all name updates from StyleSync → StyleWithAI
 import openai
 import streamlit as st
 import requests
@@ -12,7 +12,7 @@ import re
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-st.set_page_config(page_title="StyleSync", layout="wide")
+st.set_page_config(page_title="StyleWithAI", layout="wide")
 
 # ---------- Welcome Splash (Once per session) ----------
 if "show_welcome" not in st.session_state:
@@ -24,7 +24,7 @@ if st.session_state.show_welcome:
                     height:100vh; display:flex; flex-direction:column;
                     justify-content:center; align-items:center;
                     color: white; text-align:center;'>
-            <h1 style='font-size: 4rem;'>Welcome to StyleSync</h1>
+            <h1 style='font-size: 4rem;'>Welcome to StyleWithAI</h1>
             <p style='font-size: 1.5rem;'>Your AI-powered clothing assistant</p>
         </div>
     """, unsafe_allow_html=True)
