@@ -10,6 +10,25 @@ import time
 from textwrap import wrap
 import re
 
+st.markdown(
+    """
+    <style>
+    html, body, [class*="css"]  {
+        color: black !important;
+    }
+
+    div[data-testid="stMarkdownContainer"] {
+        color: black !important;
+    }
+
+    h1, h2, h3, h4, h5, h6, p, span {
+        color: black !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 st.set_page_config(page_title="StyleWithAI", layout="wide")
