@@ -219,14 +219,6 @@ with st.sidebar.expander("ℹ️ How It Works"):
     4. 💾 Download or listen to your personalized style tips!
     """)
 
-with st.sidebar.expander("🧠 What is Style Memory?"):
-    st.markdown("""
-    Style Memory keeps track of outfits you've uploaded:  
-    - 📦 Stores your fashion preferences  
-    - 🔄 Recommends new combinations  
-    - 💡 Learns from your choices over time
-    """)
-
 language_option = st.sidebar.selectbox("🌐 Choose Language for Suggestions", 
                                      ["English", "Roman Urdu", "French", "German", "Portuguese"])
 lang_codes = {
