@@ -236,7 +236,29 @@ tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Assistant",
 with tab1:
     st.header("👗 Personal Style Architect")
 
-    # Persist session states
+    # ---------- Style Filters ----------
+    with st.expander("✨ Style Blueprint", expanded=True):
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            occasion = st.selectbox("🎯 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work", "Date"], key="occasion1")
+            season = st.selectbox("🌦️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn", "Monsoon"], key="season1")
+
+        with col2:
+            gender = st.selectbox("🚻 Gender", ["Woman", "Man", "Non-binary", "Prefer not to say"], key="gender1")
+            body_type = st.selectbox("🧍 Body Type", ["Petite", "Tall", "Plus-size", "Athletic", "Average", "Curvy"], key="bodytype1")
+
+        with col3:
+            age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+", "60+"], key="age1")
+            mood = st.selectbox("😌 Mood", ["Happy", "Lazy", "Motivated", "Romantic", "Confident", "Chill", "Adventurous", "Classy", "Energetic", "Bold", "Elegant", "Sophisticated", "Edgy"], key="mood1")
+
+    # ---------- File Upload ----------
+    uploaded_file = st.file_uploader("📸 Upload Your Style Canvas", type=["jpg", "jpeg", "png"])
+    if uploaded_file:
+        st.session_state.uploaded_file = uploaded_file
+        st.image(uploaded_file, caption="🎨 Your Style Foundation", width=300)
+
+    # ---------- Session States ----------
     if "uploaded_file" not in st.session_state:
         st.session_state.uploaded_file = None
     if "suggestion" not in st.session_state:
@@ -246,20 +268,12 @@ with tab1:
     if "generated_images" not in st.session_state:
         st.session_state.generated_images = []
 
-    # --- Style Preferences (already in your code before this) ---
-    # e.g., occasion, season, gender, body_type, age, mood
-    # ...
-
-    # --- Image Upload (already in your code) ---
-    # e.g., st.file_uploader, st.image
-    # ...
-
-    # ✅ Submit to backend and generate recommendation
+    # ---------- Submit to Backend ----------
     if st.button("✨ Generate Masterpiece", type="primary", use_container_width=True):
         if not st.session_state.uploaded_file:
             st.warning("⚠️ Please upload an image before generating your masterpiece.")
         else:
-            st.session_state.generated_images = []  # Clear visuals
+            st.session_state.generated_images = []  # Reset visuals
 
             data = {
                 "occasion": occasion,
@@ -296,7 +310,7 @@ with tab1:
                         else:
                             st.balloons()
                             st.success("🌟 Style Masterpiece Completed!")
-                            st.rerun()  # Automatically trigger image generation
+                            st.rerun()
                     else:
                         st.error(f"⚠️ Error {response.status_code}")
                 except requests.exceptions.RequestException:
@@ -304,14 +318,14 @@ with tab1:
                 except Exception as e:
                     st.error(f"🎭 Unexpected error: {str(e)}")
 
-    # ✅ Display AI suggestion
+    # ---------- Display AI Suggestion ----------
     if st.session_state.suggestion:
         st.markdown("### ✨ Your Style Masterpiece")
         st.markdown("---")
         st.markdown(st.session_state.suggestion)
         st.markdown("---")
 
-    # ---------- 🧠 Outfit Visual Board (No Person, Just Items)
+    # ---------- 🧠 Outfit Visual Board (No Person, Just Items) ----------
     if st.session_state.suggestion:
         st.markdown("## 🖼️ Outfit Visualization")
         st.caption("AI-generated product images of recommended clothing and accessories")
@@ -366,7 +380,7 @@ with tab1:
                     progress.progress((i + 1) / len(outfit_items))
                 progress.empty()
 
-        # ✅ Show visuals in 2-column layout
+        # ---------- Show Generated Images ----------
         if st.session_state.generated_images:
             cols = st.columns(2)
             for idx, (item, url) in enumerate(st.session_state.generated_images):
@@ -391,7 +405,6 @@ with tab1:
                         )
                     except Exception as e:
                         st.error(f"Download failed for {item}: {str(e)}")
-
 
 # ---------- Tab 2: Travel Assistant ----------
 with tab2:
