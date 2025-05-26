@@ -334,12 +334,13 @@ with tab1:
 
         import re
         import requests
+        import openai
         openai.api_key = st.secrets["OPENAI_API_KEY"]
 
         def parse_outfit_items(markdown_text):
             items = []
 
-            # Match single lines: **Garment**: Oversized tee
+            # Match **Garment** and **Layer**
             garment_match = re.search(r"\*\*Garment\*\*:\s*(.+)", markdown_text)
             layer_match = re.search(r"\*\*Layer\*\*:\s*(.+)", markdown_text)
             if garment_match:
@@ -347,7 +348,7 @@ with tab1:
             if layer_match:
                 items.append(layer_match.group(1).strip())
 
-            # Match bullet point Accents: - White sneakers...
+            # Match list-style accents (e.g. "- Chunky sneakers")
             accent_lines = re.findall(r"[-•]\s+(.*?)(?:[\n]|$)", markdown_text)
             for acc in accent_lines:
                 if len(acc) < 70:
@@ -355,18 +356,18 @@ with tab1:
 
             return list(set(items))[:5]  # Unique, max 5
 
-        def generate_dalle_image(item_prompt):
+        def generate_dalle_image(prompt):
             try:
-                response = openai.Image.create(
+                response = openai.images.generate(
                     model="dall-e-3",
-                    prompt=f"Product photo of {item_prompt}, isolated, white background, studio lighting, e-commerce style",
+                    prompt=f"Product photo of {prompt}, isolated, white background, studio lighting, e-commerce style",
+                    n=1,
                     size="1024x1024",
-                    quality="standard",
-                    n=1
+                    quality="standard"
                 )
-                return response["data"][0]["url"]
+                return response.data[0].url
             except Exception as e:
-                st.error(f"❌ Failed to generate image for {item_prompt}: {str(e)}")
+                st.error(f"❌ Failed to generate image for {prompt}:\n\n{str(e)}")
                 return None
 
         if not st.session_state.generated_images:
@@ -405,6 +406,7 @@ with tab1:
                         )
                     except Exception as e:
                         st.error(f"Download failed for {item}: {str(e)}")
+
 
 
 # ---------- Tab 2: Travel Assistant ----------
