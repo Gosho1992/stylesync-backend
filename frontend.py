@@ -231,7 +231,6 @@ lang_codes = {
 
 # ---------- Tabs ----------
 tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Assistant", "📊 Trends"])
-
 # ---------- Tab 1: Outfit Suggestion (Now with Visuals) ----------
 with tab1:
     st.header("👗 Personal Style Architect")
@@ -285,11 +284,14 @@ with tab1:
                 "format_instructions": """Respond in Markdown with:
                 ## [Theme Name]
                 - **Vibe**: [Mood descriptor]
-                - **Top**: [Item] + [Details]
-                - **Bottom**: [Item] + [Fit Note]
-                - **Shoes**: [Type] + [Seasonal Advice]
-                - **Accents**: 3 items with benefits
-                - **Fit Hack**: [Body-type specific tip]"""
+                - **Garment**: [Main Item]
+                - **Layer**: [Optional Jacket/Layer]
+                - **Accents**: 
+                    - Item 1
+                    - Item 2
+                    - Item 3
+                - **Fit Tip**: [Helpful styling trick]
+                - **Final Flair**: [Confidence boost statement]"""
             }
 
             with st.spinner("🎨 Crafting your couture vision..."):
@@ -325,7 +327,7 @@ with tab1:
         st.markdown(st.session_state.suggestion)
         st.markdown("---")
 
-    # ---------- 🧠 Outfit Visual Board (No Person, Just Items) ----------
+    # ---------- 🧠 Outfit Visual Board ----------
     if st.session_state.suggestion:
         st.markdown("## 🖼️ Outfit Visualization")
         st.caption("AI-generated product images of recommended clothing and accessories")
@@ -336,24 +338,22 @@ with tab1:
 
         def parse_outfit_items(markdown_text):
             items = []
-            matches = {
-                "top": re.search(r"\*\*Top\*\*:\s*(.+)", markdown_text),
-                "bottom": re.search(r"\*\*Bottom\*\*:\s*(.+)", markdown_text),
-                "shoes": re.search(r"\*\*Shoes\*\*:\s*(.+)", markdown_text),
-                "accents": re.search(r"\*\*Accents\*\*:\s*(.+)", markdown_text)
-            }
 
-            for key, match in matches.items():
-                if match:
-                    if key == "accents":
-                        accessories = match.group(1).split(",")
-                        items.extend([acc.strip() for acc in accessories[:2]])
-                    else:
-                        item = match.group(1).split("+")[0].strip()
-                        if item and len(item) < 50:
-                            items.append(item)
+            # Match single lines: **Garment**: Oversized tee
+            garment_match = re.search(r"\*\*Garment\*\*:\s*(.+)", markdown_text)
+            layer_match = re.search(r"\*\*Layer\*\*:\s*(.+)", markdown_text)
+            if garment_match:
+                items.append(garment_match.group(1).strip())
+            if layer_match:
+                items.append(layer_match.group(1).strip())
 
-            return list(set(items))[:5]  # Unique, limit to 5
+            # Match bullet point Accents: - White sneakers...
+            accent_lines = re.findall(r"[-•]\s+(.*?)(?:[\n]|$)", markdown_text)
+            for acc in accent_lines:
+                if len(acc) < 70:
+                    items.append(acc.strip().rstrip("."))
+
+            return list(set(items))[:5]  # Unique, max 5
 
         def generate_dalle_image(item_prompt):
             try:
@@ -380,7 +380,7 @@ with tab1:
                     progress.progress((i + 1) / len(outfit_items))
                 progress.empty()
 
-        # ---------- Show Generated Images ----------
+        # ---------- Display Images ----------
         if st.session_state.generated_images:
             cols = st.columns(2)
             for idx, (item, url) in enumerate(st.session_state.generated_images):
@@ -405,6 +405,7 @@ with tab1:
                         )
                     except Exception as e:
                         st.error(f"Download failed for {item}: {str(e)}")
+
 
 # ---------- Tab 2: Travel Assistant ----------
 with tab2:
