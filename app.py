@@ -4,7 +4,6 @@ import base64
 import openai
 from werkzeug.utils import secure_filename
 import traceback
-import re  # Added for potential future prompt parsing
 
 # Configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -69,6 +68,7 @@ STYLE_PROFILES = {
     }
 }
 
+# ✅ FIXED: OpenAI Vision format
 def detect_style(image_b64):
     response = client.chat.completions.create(
         model="gpt-4o",
@@ -158,22 +158,10 @@ Format:
             max_tokens=1200
         )
 
-        outfit = response.choices[0].message.content
-        
-        # Generate image prompt for Leonardo AI
-        image_prompt = (
-            f"A {filters['gender'].lower()} wearing {style.replace('_', ' ')} fashion, "
-            f"{filters['mood']} mood, {filters['occasion']} occasion. "
-            f"Outfit details: {outfit[:300]}. "
-            f"Full body shot, photorealistic, high fashion photography style, "
-            f"perfect lighting, studio background."
-        )
-
         return jsonify({
             "status": "success",
             "style": style,
-            "fashion_suggestion": outfit,
-            "image_prompt": image_prompt,  # New field for Leonardo AI
+            "fashion_suggestion": response.choices[0].message.content,
             "meta": filters
         })
 

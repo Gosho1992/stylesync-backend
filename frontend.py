@@ -232,9 +232,17 @@ lang_codes = {
 # ---------- Tabs ----------
 tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Assistant", "📊 Trends"])
 
-# ---------- Tab 1: Outfit Suggestion (Error-handled) ----------
+# ---------- Tab 1: Outfit Suggestion (Now with Visuals) ----------
 with tab1:
     st.header("👗 Personal Style Architect")
+
+    # Initialize OpenAI client (add your API key)
+    if 'openai_client' not in st.session_state:
+        try:
+            st.session_state.openai_client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+        except:
+            st.error("OpenAI client not configured. Please check your API key.")
+            st.stop()
 
     # Persist selections
     if "uploaded_file" not in st.session_state:
@@ -243,37 +251,19 @@ with tab1:
         st.session_state.suggestion = ""
     if "translated_suggestion" not in st.session_state:
         st.session_state.translated_suggestion = ""
+    if "generated_images" not in st.session_state:
+        st.session_state.generated_images = []
 
-    # Style Preferences
-    with st.expander("✨ Style Blueprint", expanded=True):
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            occasion = st.selectbox("🎯 Occasion", ["Casual", "Formal", "Party", "Wedding", "Work", "Date"], key="occasion1")
-            season = st.selectbox("🌦️ Season", ["Any", "Summer", "Winter", "Spring", "Autumn", "Monsoon"], key="season1")
-        with col2:
-            gender = st.selectbox("🚻 Gender", ["Woman", "Man", "Non-binary", "Prefer not to say"], key="gender1")
-            body_type = st.selectbox("🧍 Body Type", ["Petite", "Tall", "Plus-size", "Athletic", "Average", "Curvy"], key="bodytype1")
-        with col3:
-            age = st.selectbox("🎂 Age Group", ["Teen", "20s", "30s", "40s", "50+", "60+"], key="age1")
-            mood = st.selectbox("😌 Mood", ["Happy", "Lazy", "Motivated", "Romantic", "Confident", "Chill", "Adventurous", "Classy", "Energetic", "Bold", "Elegant", "Sophisticated", "Edgy"], key="mood1")
-
-    # Image Upload
-    uploaded_file = st.file_uploader(
-        "📸 Upload Your Style Canvas", 
-        type=["jpg", "jpeg", "png"],
-        help="For best results, use well-lit front-facing images"
-    )
-    if uploaded_file:
-        st.session_state.uploaded_file = uploaded_file
-
-    if st.session_state.uploaded_file:
-        st.image(Image.open(st.session_state.uploaded_file), caption="🎨 Your Style Foundation", width=300)
+    # ... [keep your existing Style Preferences and Image Upload code] ...
 
     # ✅ Image Check Before Generate
     if st.button("✨ Generate Masterpiece", type="primary", use_container_width=True):
         if not st.session_state.uploaded_file:
             st.warning("⚠️ Please upload an image before generating your masterpiece.")
         else:
+            # Clear previous images
+            st.session_state.generated_images = []
+            
             data = {
                 "occasion": occasion,
                 "season": season,
@@ -293,90 +283,164 @@ with tab1:
 
             with st.spinner("🎨 Crafting your couture vision..."):
                 try:
-                    response = requests.post(
-                        "https://stylesync-backend-2kz6.onrender.com/upload",
-                        files={'file': ('image.jpg', st.session_state.uploaded_file.getvalue(), 'image/jpeg')},
-                        data=data,
-                        timeout=20
-                    )
+                    # ... [keep your existing backend request code] ...
 
                     if response.status_code == 200:
                         st.session_state.suggestion = response.json().get("fashion_suggestion", "")
                         st.session_state.translated_suggestion = ""
-                        st.session_state.image_prompt = response.json().get("image_prompt", "")  # Store image prompt
 
                         if not st.session_state.suggestion:
                             st.error("🎭 Our stylists need more inspiration! Try again.")
                         else:
                             st.balloons()
                             st.success("🌟 Style Masterpiece Completed!")
+                            
+                            # Generate images after successful suggestion
+                            generate_outfit_visuals()
 
-                    else:
-                        st.error(f"⚠️ Creative Block (Error {response.status_code})")
+    # Improved outfit item visualization function
+    def generate_outfit_visuals():
+        if not st.session_state.suggestion:
+            return
+            
+        def extract_clothing_items(text):
+            """Improved extraction for different markdown formats"""
+            items = []
+            patterns = [
+                r'\*\*(.*?)\*\*:\s*\[(.*?)\]',  # **Top**: [Shirt]
+                r'- \*\*(.*?)\*\*:\s*(.*)',      # - **Top**: Shirt
+                r'- (.*?):\s*(.*)'               # - Top: Shirt
+            ]
+            
+            for line in text.split('\n'):
+                for pattern in patterns:
+                    match = re.search(pattern, line)
+                    if match:
+                        item_type = match.group(1).lower()
+                        item_desc = match.group(2).split('+')[0].strip()  # Take first part before +
+                        if item_desc and len(item_desc) < 50:  # Filter out long descriptions
+                            items.append(item_desc)
+            return list(set(items))[:5]  # Remove duplicates and limit to 5
 
-                except requests.exceptions.RequestException:
-                    st.error("🌐 Connection Error: The fashion universe is unreachable")
-                except Exception as e:
-                    st.error(f"🎭 Unexpected Artistry Failure: {str(e)}")
-
-    # Output
-    if st.session_state.suggestion:
-        if lang_codes[language_option] != "en":
-            if not st.session_state.translated_suggestion:
-                st.session_state.translated_suggestion = translate_long_text(
-                    st.session_state.suggestion,
-                    lang_codes[language_option]
+        def generate_dalle_image(prompt):
+            """Generate product-style image with error handling"""
+            try:
+                response = st.session_state.openai_client.images.generate(
+                    model="dall-e-3",
+                    prompt=f"Professional product photo of {prompt}, isolated on white background, "
+                          "high resolution, studio lighting, no model, no person, "
+                          "e-commerce style, clean presentation",
+                    size="1024x1024",
+                    quality="hd",
+                    n=1
                 )
-            display_text = st.session_state.translated_suggestion
+                return response.data[0].url
+            except Exception as e:
+                st.error(f"Failed to generate image: {str(e)}")
+                return None
+
+        outfit_items = extract_clothing_items(st.session_state.suggestion)
+        st.session_state.generated_images = []
+        
+        if outfit_items:
+            with st.spinner("🖼️ Generating visualizations..."):
+                progress_bar = st.progress(0)
+                for i, item in enumerate(outfit_items):
+                    progress_bar.progress((i + 1) / len(outfit_items))
+                    image_url = generate_dalle_image(item)
+                    if image_url:
+                        st.session_state.generated_images.append((item, image_url))
+                progress_bar.empty()
+
+# ---------- 🧠 Outfit Visual Board (No Person, Just Items)
+if st.session_state.suggestion:
+    st.markdown("## 🖼️ Outfit Visualization")
+    st.caption("AI-generated product images of recommended clothing and accessories")
+
+    # ✅ Set API key properly (standard OpenAI SDK usage)
+    openai.api_key = st.secrets["OPENAI_API_KEY"]
+
+    # ✅ Improved Markdown Parser
+    def parse_outfit_items(markdown_text):
+        items = []
+
+        # Extract top, bottom, shoes
+        matches = {
+            "top": re.search(r"\*\*Top\*\*:\s*(.+)", markdown_text),
+            "bottom": re.search(r"\*\*Bottom\*\*:\s*(.+)", markdown_text),
+            "shoes": re.search(r"\*\*Shoes\*\*:\s*(.+)", markdown_text),
+            "accents": re.search(r"\*\*Accents\*\*:\s*(.+)", markdown_text)
+        }
+
+        for key, match in matches.items():
+            if match:
+                if key == "accents":
+                    accessories = match.group(1).split(",")
+                    items.extend([acc.strip() for acc in accessories[:2]])  # Limit to 2
+                else:
+                    item = match.group(1).split("+")[0].strip()
+                    if item and len(item) < 50:
+                        items.append(item)
+
+        return list(set(items))[:5]  # Remove duplicates, limit to 5
+
+    # ✅ Generate DALL·E Image
+    def generate_dalle_image(item_prompt):
+        try:
+            response = openai.Image.create(
+                model="dall-e-3",
+                prompt=f"Product photo of {item_prompt}, isolated, white background, studio lighting, e-commerce style",
+                size="1024x1024",
+                quality="standard",
+                n=1
+            )
+            return response["data"][0]["url"]
+        except Exception as e:
+            st.error(f"❌ Failed to generate image for {item_prompt}: {str(e)}")
+            return None
+
+    # ✅ Process Items
+    if "generated_images" not in st.session_state or not st.session_state.generated_images:
+        st.session_state.generated_images = []
+        outfit_items = parse_outfit_items(st.session_state.suggestion)
+
+        if outfit_items:
+            with st.spinner("🧵 Generating visuals for your outfit..."):
+                progress = st.progress(0)
+                for i, item in enumerate(outfit_items):
+                    image_url = generate_dalle_image(item)
+                    if image_url:
+                        st.session_state.generated_images.append((item, image_url))
+                    progress.progress((i + 1) / len(outfit_items))
+                progress.empty()
         else:
-            display_text = st.session_state.suggestion
+            st.info("No recognizable items found to generate visuals.")
 
-        st.markdown("### ✨ Your Style Masterpiece")
+    # ✅ Display Visuals
+    if st.session_state.generated_images:
+        cols = st.columns(2)
+        for idx, (item, url) in enumerate(st.session_state.generated_images):
+            with cols[idx % 2]:
+                st.image(url, caption=f"**{item.title()}**", use_column_width=True)
+
         st.markdown("---")
-        st.markdown(display_text)
-        st.markdown("---")
+        if st.button("🔁 Refresh Outfit Visuals"):
+            st.session_state.generated_images = []
+            st.rerun()
 
-        with st.expander("🔍 Style Breakdown", expanded=False):
-            st.table({
-                "Filter": ["Gender", "Body Type", "Age", "Mood", "Occasion", "Season"],
-                "Applied Value": [gender, body_type, age, mood, occasion, season]
-            })
-
-        if st.button("🎧 Hear Your Style Story"):
-            with st.spinner("Composing your fashion sonnet..."):
-                tts = gTTS(text=st.session_state.suggestion, lang=lang_codes[language_option])
-                audio_bytes = io.BytesIO()
-                tts.write_to_fp(audio_bytes)
-                audio_bytes.seek(0)
-                st.audio(audio_bytes, format="audio/mp3")
-
-        # ✅ Leonardo AI Visualization Section
-        if hasattr(st.session_state, 'image_prompt') and st.session_state.image_prompt:
-            with st.expander("🖼️ Visualize Your Style (Leonardo AI Prompt)", expanded=True):
-                st.markdown("#### 📸 AI-Ready Prompt for Visual Generation")
-                st.code(st.session_state.image_prompt, language="markdown")
-
-                st.markdown("""
-                👉 **How to visualize your outfit:**
-                1. Copy the prompt above
-                2. Go to [Leonardo AI](https://app.leonardo.ai/)
-                3. Paste into their image generation tool
-                4. Upload the generated image below
-                """)
-
-                generated_img = st.file_uploader(
-                    "📤 Upload Generated Outfit Image (optional)", 
-                    type=["png", "jpg", "jpeg"],
-                    key="leonardo_image"
-                )
-                if generated_img:
-                    st.image(
-                        generated_img, 
-                        caption="🧠 AI-Styled Outfit", 
-                        use_column_width=True,
-                        output_format="auto"
+        if st.button("💾 Download All Outfit Images"):
+            for i, (item, url) in enumerate(st.session_state.generated_images):
+                try:
+                    img_data = requests.get(url).content
+                    st.download_button(
+                        label=f"Download {item}",
+                        data=img_data,
+                        file_name=f"{item.replace(' ', '_').lower()}.png",
+                        mime="image/png",
+                        key=f"dl_{i}"
                     )
-                    st.success("✨ Outfit visualization complete! Now you can see how your style would look in real life.")
+                except Exception as e:
+                    st.error(f"Download failed for {item}: {str(e)}")
 
 # ---------- Tab 2: Travel Assistant ----------
 with tab2:
