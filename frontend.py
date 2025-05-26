@@ -236,15 +236,7 @@ tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Assistant",
 with tab1:
     st.header("👗 Personal Style Architect")
 
-    # Initialize OpenAI client (add your API key)
-    if 'openai_client' not in st.session_state:
-        try:
-            st.session_state.openai_client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-        except:
-            st.error("OpenAI client not configured. Please check your API key.")
-            st.stop()
-
-    # Persist selections
+    # Persist session states
     if "uploaded_file" not in st.session_state:
         st.session_state.uploaded_file = None
     if "suggestion" not in st.session_state:
@@ -254,16 +246,21 @@ with tab1:
     if "generated_images" not in st.session_state:
         st.session_state.generated_images = []
 
-    # ... [keep your existing Style Preferences and Image Upload code] ...
+    # --- Style Preferences (already in your code before this) ---
+    # e.g., occasion, season, gender, body_type, age, mood
+    # ...
 
-    # ✅ Image Check Before Generate
+    # --- Image Upload (already in your code) ---
+    # e.g., st.file_uploader, st.image
+    # ...
+
+    # ✅ Submit to backend and generate recommendation
     if st.button("✨ Generate Masterpiece", type="primary", use_container_width=True):
         if not st.session_state.uploaded_file:
             st.warning("⚠️ Please upload an image before generating your masterpiece.")
         else:
-            # Clear previous images
-            st.session_state.generated_images = []
-            
+            st.session_state.generated_images = []  # Clear visuals
+
             data = {
                 "occasion": occasion,
                 "season": season,
@@ -283,7 +280,12 @@ with tab1:
 
             with st.spinner("🎨 Crafting your couture vision..."):
                 try:
-                    # ... [keep your existing backend request code] ...
+                    response = requests.post(
+                        "https://stylesync-backend-2kz6.onrender.com/upload",
+                        files={'file': ('image.jpg', st.session_state.uploaded_file.getvalue(), 'image/jpeg')},
+                        data=data,
+                        timeout=20
+                    )
 
                     if response.status_code == 200:
                         st.session_state.suggestion = response.json().get("fashion_suggestion", "")
@@ -294,153 +296,102 @@ with tab1:
                         else:
                             st.balloons()
                             st.success("🌟 Style Masterpiece Completed!")
-                            
-                            # Generate images after successful suggestion
-                            generate_outfit_visuals()
+                            st.rerun()  # Automatically trigger image generation
+                    else:
+                        st.error(f"⚠️ Error {response.status_code}")
+                except requests.exceptions.RequestException:
+                    st.error("🌐 Network error: Unable to reach the style server.")
+                except Exception as e:
+                    st.error(f"🎭 Unexpected error: {str(e)}")
 
-    # Improved outfit item visualization function
-    def generate_outfit_visuals():
-        if not st.session_state.suggestion:
-            return
-            
-        def extract_clothing_items(text):
-            """Improved extraction for different markdown formats"""
+    # ✅ Display AI suggestion
+    if st.session_state.suggestion:
+        st.markdown("### ✨ Your Style Masterpiece")
+        st.markdown("---")
+        st.markdown(st.session_state.suggestion)
+        st.markdown("---")
+
+    # ---------- 🧠 Outfit Visual Board (No Person, Just Items)
+    if st.session_state.suggestion:
+        st.markdown("## 🖼️ Outfit Visualization")
+        st.caption("AI-generated product images of recommended clothing and accessories")
+
+        import re
+        import requests
+        openai.api_key = st.secrets["OPENAI_API_KEY"]
+
+        def parse_outfit_items(markdown_text):
             items = []
-            patterns = [
-                r'\*\*(.*?)\*\*:\s*\[(.*?)\]',  # **Top**: [Shirt]
-                r'- \*\*(.*?)\*\*:\s*(.*)',      # - **Top**: Shirt
-                r'- (.*?):\s*(.*)'               # - Top: Shirt
-            ]
-            
-            for line in text.split('\n'):
-                for pattern in patterns:
-                    match = re.search(pattern, line)
-                    if match:
-                        item_type = match.group(1).lower()
-                        item_desc = match.group(2).split('+')[0].strip()  # Take first part before +
-                        if item_desc and len(item_desc) < 50:  # Filter out long descriptions
-                            items.append(item_desc)
-            return list(set(items))[:5]  # Remove duplicates and limit to 5
+            matches = {
+                "top": re.search(r"\*\*Top\*\*:\s*(.+)", markdown_text),
+                "bottom": re.search(r"\*\*Bottom\*\*:\s*(.+)", markdown_text),
+                "shoes": re.search(r"\*\*Shoes\*\*:\s*(.+)", markdown_text),
+                "accents": re.search(r"\*\*Accents\*\*:\s*(.+)", markdown_text)
+            }
 
-        def generate_dalle_image(prompt):
-            """Generate product-style image with error handling"""
+            for key, match in matches.items():
+                if match:
+                    if key == "accents":
+                        accessories = match.group(1).split(",")
+                        items.extend([acc.strip() for acc in accessories[:2]])
+                    else:
+                        item = match.group(1).split("+")[0].strip()
+                        if item and len(item) < 50:
+                            items.append(item)
+
+            return list(set(items))[:5]  # Unique, limit to 5
+
+        def generate_dalle_image(item_prompt):
             try:
-                response = st.session_state.openai_client.images.generate(
+                response = openai.Image.create(
                     model="dall-e-3",
-                    prompt=f"Professional product photo of {prompt}, isolated on white background, "
-                          "high resolution, studio lighting, no model, no person, "
-                          "e-commerce style, clean presentation",
+                    prompt=f"Product photo of {item_prompt}, isolated, white background, studio lighting, e-commerce style",
                     size="1024x1024",
-                    quality="hd",
+                    quality="standard",
                     n=1
                 )
-                return response.data[0].url
+                return response["data"][0]["url"]
             except Exception as e:
-                st.error(f"Failed to generate image: {str(e)}")
+                st.error(f"❌ Failed to generate image for {item_prompt}: {str(e)}")
                 return None
 
-        outfit_items = extract_clothing_items(st.session_state.suggestion)
-        st.session_state.generated_images = []
-        
-        if outfit_items:
-            with st.spinner("🖼️ Generating visualizations..."):
-                progress_bar = st.progress(0)
-                for i, item in enumerate(outfit_items):
-                    progress_bar.progress((i + 1) / len(outfit_items))
-                    image_url = generate_dalle_image(item)
-                    if image_url:
-                        st.session_state.generated_images.append((item, image_url))
-                progress_bar.empty()
-
-# ---------- 🧠 Outfit Visual Board (No Person, Just Items)
-if st.session_state.suggestion:
-    st.markdown("## 🖼️ Outfit Visualization")
-    st.caption("AI-generated product images of recommended clothing and accessories")
-
-    # ✅ Set API key properly (standard OpenAI SDK usage)
-    openai.api_key = st.secrets["OPENAI_API_KEY"]
-
-    # ✅ Improved Markdown Parser
-    def parse_outfit_items(markdown_text):
-        items = []
-
-        # Extract top, bottom, shoes
-        matches = {
-            "top": re.search(r"\*\*Top\*\*:\s*(.+)", markdown_text),
-            "bottom": re.search(r"\*\*Bottom\*\*:\s*(.+)", markdown_text),
-            "shoes": re.search(r"\*\*Shoes\*\*:\s*(.+)", markdown_text),
-            "accents": re.search(r"\*\*Accents\*\*:\s*(.+)", markdown_text)
-        }
-
-        for key, match in matches.items():
-            if match:
-                if key == "accents":
-                    accessories = match.group(1).split(",")
-                    items.extend([acc.strip() for acc in accessories[:2]])  # Limit to 2
-                else:
-                    item = match.group(1).split("+")[0].strip()
-                    if item and len(item) < 50:
-                        items.append(item)
-
-        return list(set(items))[:5]  # Remove duplicates, limit to 5
-
-    # ✅ Generate DALL·E Image
-    def generate_dalle_image(item_prompt):
-        try:
-            response = openai.Image.create(
-                model="dall-e-3",
-                prompt=f"Product photo of {item_prompt}, isolated, white background, studio lighting, e-commerce style",
-                size="1024x1024",
-                quality="standard",
-                n=1
-            )
-            return response["data"][0]["url"]
-        except Exception as e:
-            st.error(f"❌ Failed to generate image for {item_prompt}: {str(e)}")
-            return None
-
-    # ✅ Process Items
-    if "generated_images" not in st.session_state or not st.session_state.generated_images:
-        st.session_state.generated_images = []
-        outfit_items = parse_outfit_items(st.session_state.suggestion)
-
-        if outfit_items:
+        if not st.session_state.generated_images:
+            outfit_items = parse_outfit_items(st.session_state.suggestion)
             with st.spinner("🧵 Generating visuals for your outfit..."):
                 progress = st.progress(0)
                 for i, item in enumerate(outfit_items):
-                    image_url = generate_dalle_image(item)
-                    if image_url:
-                        st.session_state.generated_images.append((item, image_url))
+                    url = generate_dalle_image(item)
+                    if url:
+                        st.session_state.generated_images.append((item, url))
                     progress.progress((i + 1) / len(outfit_items))
                 progress.empty()
-        else:
-            st.info("No recognizable items found to generate visuals.")
 
-    # ✅ Display Visuals
-    if st.session_state.generated_images:
-        cols = st.columns(2)
-        for idx, (item, url) in enumerate(st.session_state.generated_images):
-            with cols[idx % 2]:
-                st.image(url, caption=f"**{item.title()}**", use_column_width=True)
+        # ✅ Show visuals in 2-column layout
+        if st.session_state.generated_images:
+            cols = st.columns(2)
+            for idx, (item, url) in enumerate(st.session_state.generated_images):
+                with cols[idx % 2]:
+                    st.image(url, caption=f"**{item.title()}**", use_column_width=True)
 
-        st.markdown("---")
-        if st.button("🔁 Refresh Outfit Visuals"):
-            st.session_state.generated_images = []
-            st.rerun()
+            st.markdown("---")
+            if st.button("🔁 Refresh Outfit Visuals"):
+                st.session_state.generated_images = []
+                st.rerun()
 
-        if st.button("💾 Download All Outfit Images"):
-            for i, (item, url) in enumerate(st.session_state.generated_images):
-                try:
-                    img_data = requests.get(url).content
-                    st.download_button(
-                        label=f"Download {item}",
-                        data=img_data,
-                        file_name=f"{item.replace(' ', '_').lower()}.png",
-                        mime="image/png",
-                        key=f"dl_{i}"
-                    )
-                except Exception as e:
-                    st.error(f"Download failed for {item}: {str(e)}")
+            if st.button("💾 Download All Outfit Images"):
+                for i, (item, url) in enumerate(st.session_state.generated_images):
+                    try:
+                        img_data = requests.get(url).content
+                        st.download_button(
+                            label=f"Download {item}",
+                            data=img_data,
+                            file_name=f"{item.replace(' ', '_').lower()}.png",
+                            mime="image/png",
+                            key=f"dl_{i}"
+                        )
+                    except Exception as e:
+                        st.error(f"Download failed for {item}: {str(e)}")
+
 
 # ---------- Tab 2: Travel Assistant ----------
 with tab2:
