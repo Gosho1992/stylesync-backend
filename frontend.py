@@ -231,9 +231,11 @@ lang_codes = {
 
 # ---------- Tabs ----------
 tab1, tab2, tab3 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Assistant", "📊 Trends"])
-# ---------- Tab 1: Outfit Suggestion (Now with Visuals) ----------
 with tab1:
     st.header("👗 Personal Style Architect")
+
+    from PIL import Image
+    import io
 
     # ---------- Style Filters ----------
     with st.expander("✨ Style Blueprint", expanded=True):
@@ -255,7 +257,12 @@ with tab1:
     uploaded_file = st.file_uploader("📸 Upload Your Style Canvas", type=["jpg", "jpeg", "png"])
     if uploaded_file:
         st.session_state.uploaded_file = uploaded_file
-        st.image(uploaded_file, caption="🎨 Your Style Foundation", use_container_width=True)
+        try:
+            image_data = uploaded_file.getvalue()
+            img = Image.open(io.BytesIO(image_data))
+            st.image(img, caption="🎨 Your Style Foundation", use_container_width=True)
+        except Exception as e:
+            st.error(f"🚫 Error loading image: {str(e)}")
 
     # ---------- Session States ----------
     if "uploaded_file" not in st.session_state:
@@ -272,7 +279,7 @@ with tab1:
         if not st.session_state.uploaded_file:
             st.warning("⚠️ Please upload an image before generating your masterpiece.")
         else:
-            st.session_state.generated_images = []  # Reset visuals
+            st.session_state.generated_images = []
 
             data = {
                 "occasion": occasion,
@@ -295,7 +302,6 @@ with tab1:
                     if response.status_code == 200:
                         st.session_state.suggestion = response.json().get("fashion_suggestion", "")
                         st.session_state.translated_suggestion = ""
-
                         if not st.session_state.suggestion:
                             st.error("🎭 Our stylists need more inspiration! Try again.")
                         else:
@@ -328,15 +334,12 @@ with tab1:
 
         def parse_outfit_items(markdown_text):
             items = []
-
-            # Match numbered + bolded lines like: 1. **Footwear**: Brown leather loafers...
             pattern = r"\d+\.\s+\*\*(.*?)\*\*:\s*(.*)"
             for match in re.findall(pattern, markdown_text):
                 category, item = match
                 if len(item.strip()) < 70:
                     items.append(item.strip())
 
-            # Also check for Garment and Layer
             garment = re.search(r"\*\*Garment\*\*:\s*(.+)", markdown_text)
             layer = re.search(r"\*\*Layer\*\*:\s*(.+)", markdown_text)
             if garment:
@@ -344,7 +347,7 @@ with tab1:
             if layer:
                 items.append(layer.group(1).strip())
 
-            return list(set(items))[:5]  # Unique, limit to 5
+            return list(set(items))[:5]
 
         def generate_dalle_image(prompt):
             try:
@@ -371,7 +374,6 @@ with tab1:
                     progress.progress((i + 1) / len(outfit_items))
                 progress.empty()
 
-        # ---------- Display Images ----------
         if st.session_state.generated_images:
             cols = st.columns(2)
             for idx, (item, url) in enumerate(st.session_state.generated_images):
@@ -396,6 +398,7 @@ with tab1:
                         )
                     except Exception as e:
                         st.error(f"Download failed for {item}: {str(e)}")
+
 
 
 
