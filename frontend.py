@@ -255,7 +255,7 @@ with tab1:
     uploaded_file = st.file_uploader("📸 Upload Your Style Canvas", type=["jpg", "jpeg", "png"])
     if uploaded_file:
         st.session_state.uploaded_file = uploaded_file
-        st.image(uploaded_file, caption="🎨 Your Style Foundation", width=300)
+        st.image(uploaded_file, caption="🎨 Your Style Foundation", use_container_width=True)
 
     # ---------- Session States ----------
     if "uploaded_file" not in st.session_state:
@@ -280,18 +280,7 @@ with tab1:
                 "gender": gender,
                 "body_type": body_type,
                 "age": age,
-                "mood": mood,
-                "format_instructions": """Respond in Markdown with:
-                ## [Theme Name]
-                - **Vibe**: [Mood descriptor]
-                - **Garment**: [Main Item]
-                - **Layer**: [Optional Jacket/Layer]
-                - **Accents**: 
-                    - Item 1
-                    - Item 2
-                    - Item 3
-                - **Fit Tip**: [Helpful styling trick]
-                - **Final Flair**: [Confidence boost statement]"""
+                "mood": mood
             }
 
             with st.spinner("🎨 Crafting your couture vision..."):
@@ -340,21 +329,22 @@ with tab1:
         def parse_outfit_items(markdown_text):
             items = []
 
-            # Match **Garment** and **Layer**
-            garment_match = re.search(r"\*\*Garment\*\*:\s*(.+)", markdown_text)
-            layer_match = re.search(r"\*\*Layer\*\*:\s*(.+)", markdown_text)
-            if garment_match:
-                items.append(garment_match.group(1).strip())
-            if layer_match:
-                items.append(layer_match.group(1).strip())
+            # Match numbered + bolded lines like: 1. **Footwear**: Brown leather loafers...
+            pattern = r"\d+\.\s+\*\*(.*?)\*\*:\s*(.*)"
+            for match in re.findall(pattern, markdown_text):
+                category, item = match
+                if len(item.strip()) < 70:
+                    items.append(item.strip())
 
-            # Match list-style accents (e.g. "- Chunky sneakers")
-            accent_lines = re.findall(r"[-•]\s+(.*?)(?:[\n]|$)", markdown_text)
-            for acc in accent_lines:
-                if len(acc) < 70:
-                    items.append(acc.strip().rstrip("."))
+            # Also check for Garment and Layer
+            garment = re.search(r"\*\*Garment\*\*:\s*(.+)", markdown_text)
+            layer = re.search(r"\*\*Layer\*\*:\s*(.+)", markdown_text)
+            if garment:
+                items.append(garment.group(1).strip())
+            if layer:
+                items.append(layer.group(1).strip())
 
-            return list(set(items))[:5]  # Unique, max 5
+            return list(set(items))[:5]  # Unique, limit to 5
 
         def generate_dalle_image(prompt):
             try:
@@ -386,7 +376,7 @@ with tab1:
             cols = st.columns(2)
             for idx, (item, url) in enumerate(st.session_state.generated_images):
                 with cols[idx % 2]:
-                    st.image(url, caption=f"**{item.title()}**", use_column_width=True)
+                    st.image(url, caption=f"**{item.title()}**", use_container_width=True)
 
             st.markdown("---")
             if st.button("🔁 Refresh Outfit Visuals"):
