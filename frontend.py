@@ -273,6 +273,8 @@ with tab1:
         st.session_state.translated_suggestion = ""
     if "generated_images" not in st.session_state:
         st.session_state.generated_images = []
+    if "outfit_categories" not in st.session_state:
+        st.session_state.outfit_categories = {}
 
     # ---------- Submit to Backend ----------
     if st.button("✨ Generate Masterpiece", type="primary", use_container_width=True):
@@ -280,6 +282,7 @@ with tab1:
             st.warning("⚠️ Please upload an image before generating your masterpiece.")
         else:
             st.session_state.generated_images = []
+            st.session_state.outfit_categories = {}
 
             data = {
                 "occasion": occasion,
@@ -332,28 +335,61 @@ with tab1:
         import openai
         openai.api_key = st.secrets["OPENAI_API_KEY"]
 
+        def categorize_items(item_text):
+            """Categorize items into footwear, accessories, etc."""
+            item_lower = item_text.lower()
+            if any(word in item_lower for word in ['shoe', 'boot', 'sandal', 'loafer', 'sneaker']):
+                return "Footwear"
+            elif any(word in item_lower for word in ['watch', 'sunglass', 'bag', 'hat', 'belt', 'scarf']):
+                return "Accessories"
+            elif any(word in item_lower for word in ['shirt', 'blouse', 'top', 't-shirt']):
+                return "Tops"
+            elif any(word in item_lower for word in ['pant', 'jean', 'skirt', 'short']):
+                return "Bottoms"
+            elif any(word in item_lower for word in ['dress', 'jumpsuit']):
+                return "Dresses"
+            elif any(word in item_lower for word in ['jacket', 'coat', 'blazer', 'sweater']):
+                return "Outerwear"
+            return "Other"
+
         def parse_outfit_items(markdown_text):
             items = []
+            categories = {}
             pattern = r"\d+\.\s+\*\*(.*?)\*\*:\s*(.*)"
             for match in re.findall(pattern, markdown_text):
                 category, item = match
                 if len(item.strip()) < 70:
                     items.append(item.strip())
+                    item_category = categorize_items(item)
+                    if item_category not in categories:
+                        categories[item_category] = []
+                    categories[item_category].append(item.strip())
 
             garment = re.search(r"\*\*Garment\*\*:\s*(.+)", markdown_text)
             layer = re.search(r"\*\*Layer\*\*:\s*(.+)", markdown_text)
             if garment:
-                items.append(garment.group(1).strip())
+                item = garment.group(1).strip()
+                items.append(item)
+                item_category = categorize_items(item)
+                if item_category not in categories:
+                    categories[item_category] = []
+                categories[item_category].append(item)
             if layer:
-                items.append(layer.group(1).strip())
+                item = layer.group(1).strip()
+                items.append(item)
+                item_category = categorize_items(item)
+                if item_category not in categories:
+                    categories[item_category] = []
+                categories[item_category].append(item)
 
+            st.session_state.outfit_categories = categories
             return list(set(items))[:5]
 
         def generate_dalle_image(prompt):
             try:
                 response = openai.images.generate(
                     model="dall-e-3",
-                    prompt=f"Product photo of {prompt}, isolated, white background, studio lighting, e-commerce style",
+                    prompt=f"Professional product photo of {prompt}, isolated on white background, studio lighting, high detail, e-commerce style, 4k",
                     n=1,
                     size="1024x1024",
                     quality="standard"
@@ -375,15 +411,36 @@ with tab1:
                 progress.empty()
 
         if st.session_state.generated_images:
-            cols = st.columns(2)
-            for idx, (item, url) in enumerate(st.session_state.generated_images):
-                with cols[idx % 2]:
-                    st.image(url, caption=f"**{item.title()}**", use_container_width=True)
+            # Display by categories if we have them
+            if st.session_state.outfit_categories:
+                for category, items in st.session_state.outfit_categories.items():
+                    st.subheader(f"{category}")
+                    cols = st.columns(min(3, len(items)))
+                    for idx, item in enumerate(items):
+                        # Find the matching image URL
+                        img_url = next((url for (itm, url) in st.session_state.generated_images if itm == item), None)
+                        if img_url:
+                            with cols[idx % len(cols)]:
+                                st.image(img_url, caption=f"**{item.title()}**", use_container_width=True)
+            else:
+                # Fallback to original display if no categories
+                cols = st.columns(2)
+                for idx, (item, url) in enumerate(st.session_state.generated_images):
+                    with cols[idx % 2]:
+                        st.image(url, caption=f"**{item.title()}**", use_container_width=True)
 
             st.markdown("---")
-            if st.button("🔁 Refresh Outfit Visuals"):
-                st.session_state.generated_images = []
-                st.rerun()
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🔁 Regenerate Images Only", help="Regenerate the visualizations without changing the outfit recommendations"):
+                    st.session_state.generated_images = []
+                    st.rerun()
+            with col2:
+                if st.button("🔄 Generate New Outfit", type="primary"):
+                    st.session_state.suggestion = ""
+                    st.session_state.generated_images = []
+                    st.session_state.outfit_categories = {}
+                    st.rerun()
 
             if st.button("💾 Download All Outfit Images"):
                 for i, (item, url) in enumerate(st.session_state.generated_images):
@@ -398,7 +455,6 @@ with tab1:
                         )
                     except Exception as e:
                         st.error(f"Download failed for {item}: {str(e)}")
-
 
 
 
