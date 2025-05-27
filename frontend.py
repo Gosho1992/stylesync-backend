@@ -355,35 +355,45 @@ with tab1:
         def parse_outfit_items(markdown_text):
             items = []
             categories = {}
-            pattern = r"\d+\.\s+\*\*(.*?)\*\*:\s*(.*)"
-            for match in re.findall(pattern, markdown_text):
-                category, item = match
-                if len(item.strip()) < 70:
-                    items.append(item.strip())
-                    item_category = categorize_items(item)
-                    if item_category not in categories:
-                        categories[item_category] = []
-                    categories[item_category].append(item.strip())
+            
+            # Try multiple patterns to extract items
+            patterns = [
+                r"\d+\.\s+\*\*(.*?)\*\*:\s*(.*)",  # **Label**: Item
+                r"\d+\.\s+\*\*(.*)\*\*",           # **Item**
+                r"\d+\.\s+(.*)",                    # 1. Item
+                r"- \*\*(.*)\*\*",                  # - **Item**
+                r"- (.*)"                           # - Item
+            ]
+            
+            for pattern in patterns:
+                for match in re.findall(pattern, markdown_text):
+                    if isinstance(match, tuple):
+                        item = match[-1].strip()  # Take the last group in case of multiple capture groups
+                    else:
+                        item = match.strip()
+                    
+                    if item and len(item) < 100:  # Reasonable length check
+                        items.append(item)
+                        item_category = categorize_items(item)
+                        if item_category not in categories:
+                            categories[item_category] = []
+                        if item not in categories[item_category]:  # Avoid duplicates
+                            categories[item_category].append(item)
 
-            garment = re.search(r"\*\*Garment\*\*:\s*(.+)", markdown_text)
-            layer = re.search(r"\*\*Layer\*\*:\s*(.+)", markdown_text)
-            if garment:
-                item = garment.group(1).strip()
-                items.append(item)
-                item_category = categorize_items(item)
-                if item_category not in categories:
-                    categories[item_category] = []
-                categories[item_category].append(item)
-            if layer:
-                item = layer.group(1).strip()
-                items.append(item)
-                item_category = categorize_items(item)
-                if item_category not in categories:
-                    categories[item_category] = []
-                categories[item_category].append(item)
+            # Fallback: If no items found with patterns, look for lines that might contain items
+            if not items:
+                for line in markdown_text.split('\n'):
+                    clean_line = line.strip().lstrip('-').lstrip('*').strip()
+                    if clean_line and len(clean_line) < 100 and not clean_line.startswith(('**', '#', '---')):
+                        items.append(clean_line)
+                        item_category = categorize_items(clean_line)
+                        if item_category not in categories:
+                            categories[item_category] = []
+                        if clean_line not in categories[item_category]:
+                            categories[item_category].append(clean_line)
 
             st.session_state.outfit_categories = categories
-            return list(set(items))[:5]
+            return list(set(items))[:6]  # Return up to 6 unique items
 
         def generate_dalle_image(prompt):
             try:
@@ -396,38 +406,49 @@ with tab1:
                 )
                 return response.data[0].url
             except Exception as e:
-                st.error(f"❌ Failed to generate image for {prompt}:\n\n{str(e)}")
+                st.error(f"❌ Failed to generate image for {prompt}: {str(e)}")
                 return None
 
         if not st.session_state.generated_images:
             outfit_items = parse_outfit_items(st.session_state.suggestion)
-            with st.spinner("🧵 Generating visuals for your outfit..."):
-                progress = st.progress(0)
-                for i, item in enumerate(outfit_items):
-                    url = generate_dalle_image(item)
-                    if url:
-                        st.session_state.generated_images.append((item, url))
-                    progress.progress((i + 1) / len(outfit_items))
-                progress.empty()
+            
+            if not outfit_items:
+                st.warning("🔍 Couldn't identify specific fashion items in the recommendation. Trying alternative approach...")
+                # Try to extract the most noun-like phrases
+                nouns = re.findall(r'\b[A-Z][a-z]+\b(?: \b[A-Z][a-z]+\b)*', st.session_state.suggestion)
+                outfit_items = list(set([n for n in nouns if len(n.split()) <= 3 and len(n) > 3][:4]))
+            
+            if outfit_items:
+                with st.spinner("🧵 Generating visuals for your outfit..."):
+                    progress = st.progress(0)
+                    for i, item in enumerate(outfit_items):
+                        url = generate_dalle_image(item)
+                        if url:
+                            st.session_state.generated_images.append((item, url))
+                        progress.progress((i + 1) / len(outfit_items))
+                    progress.empty()
+            else:
+                st.error("❌ Couldn't extract any fashion items to visualize. Please try generating again.")
 
         if st.session_state.generated_images:
             # Display by categories if we have them
             if st.session_state.outfit_categories:
                 for category, items in st.session_state.outfit_categories.items():
-                    st.subheader(f"{category}")
-                    cols = st.columns(min(3, len(items)))
-                    for idx, item in enumerate(items):
-                        # Find the matching image URL
-                        img_url = next((url for (itm, url) in st.session_state.generated_images if itm == item), None)
-                        if img_url:
-                            with cols[idx % len(cols)]:
-                                st.image(img_url, caption=f"**{item.title()}**", use_container_width=True)
+                    if items:  # Only show categories that have items
+                        st.subheader(f"{category}")
+                        cols = st.columns(min(3, len(items)))
+                        for idx, item in enumerate(items):
+                            # Find the matching image URL
+                            img_url = next((url for (itm, url) in st.session_state.generated_images if itm.lower() == item.lower()), None)
+                            if img_url:
+                                with cols[idx % len(cols)]:
+                                    st.image(img_url, caption=item, use_container_width=True)
             else:
                 # Fallback to original display if no categories
                 cols = st.columns(2)
                 for idx, (item, url) in enumerate(st.session_state.generated_images):
                     with cols[idx % 2]:
-                        st.image(url, caption=f"**{item.title()}**", use_container_width=True)
+                        st.image(url, caption=item, use_container_width=True)
 
             st.markdown("---")
             col1, col2 = st.columns(2)
@@ -455,9 +476,8 @@ with tab1:
                         )
                     except Exception as e:
                         st.error(f"Download failed for {item}: {str(e)}")
-
-
-
+        elif st.session_state.suggestion and not st.session_state.generated_images:
+            st.warning("No outfit visuals could be generated from the recommendation. Try regenerating.")
 # ---------- Tab 2: Travel Assistant ----------
 with tab2:
     st.header("✈️ Travel Fashion Assistant")
