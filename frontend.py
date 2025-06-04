@@ -10,8 +10,52 @@ import time
 from textwrap import wrap
 import re
 
+
 st.set_page_config(page_title="StyleWithAI", layout="wide")
 
+
+import stripe
+import base64
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+st.set_page_config(page_title="StyleWithAI", layout="wide")
+
+from streamlit.components.v1 import html
+
+# Add this function definition
+def stripe_verification_script():
+    return """
+    <script>
+    // Check for Stripe payment success
+    if(window.location.search.includes('payment=success')) {
+        // Store payment verification in sessionStorage
+        sessionStorage.setItem('stripePaymentVerified', 'true');
+    }
+    </script>
+    """
+
+
+# Add this at the top with your other imports
+import base64
+import io
+from PIL import Image
+
+def img_to_base64(img):
+    """Convert PIL Image to base64 string"""
+    buffered = io.BytesIO()
+    img.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+
+html(stripe_verification_script())
+
+# Initialize OpenAI client
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+>>>>>>> fae8e85 (Initial commit - StyleWithAI frontend and backend)
 # ---------- Welcome Splash (Once per session) ----------
 if "show_welcome" not in st.session_state:
     st.session_state.show_welcome = True
@@ -49,7 +93,11 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+
 openai.api_key = st.secrets["OPENAI_API_KEY"]
+
+stripe.api_key = os.getenv("STRIPE_API_KEY"))
+
 
 
 # ---------- Helper for Long Translations ----------
