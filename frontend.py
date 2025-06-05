@@ -20,6 +20,9 @@ load_dotenv()
 
 st.set_page_config(page_title="StyleWithAI", layout="wide")
 
+
+stripe.api_key = os.getenv("STRIPE_API_KEY") or st.secrets.get("STRIPE_API_KEY")
+
 # ----- Stripe Functions -----
 def stripe_verification_script():
     return """
@@ -32,16 +35,10 @@ def stripe_verification_script():
 
 def create_stripe_checkout():
     try:
-        # Get the current URL using the new query_params method
         current_url = st.query_params.get("current_url", [""])[0]
         if not current_url:
             current_url = "https://your-app-name.streamlit.app"  # CHANGE TO YOUR URL
         
-        # Verify Stripe API key is set
-        if not stripe.api_key:
-            st.error("Stripe payment processing is not properly configured")
-            return None
-
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=['card'],
             line_items=[{
@@ -51,7 +48,7 @@ def create_stripe_checkout():
                         'name': 'StyleWithAI Premium',
                         'description': 'Unlocks advanced fashion AI features',
                     },
-                    'unit_amount': 500,
+                    'unit_amount': 500,  # $5.00
                 },
                 'quantity': 1,
             }],
@@ -185,7 +182,8 @@ def render_style_card(store, products, price_range):
 # ----- Initialize APIs -----
 # Get API key from secrets or environment
 openai_api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
-stripe.api_key = os.getenv("STRIPE_API_KEY") or st.secrets.get("STRIPE_API_KEY")
+
+
 
 if not openai_api_key:
     st.error("OpenAI API key not found! Check your environment variables or secrets.")
@@ -582,21 +580,23 @@ with tab3:
 with tab4:
     st.header("✨ AI Mirror of Truth – Premium Experience")
     
+    # Check payment status
     if 'premium_unlocked' not in st.session_state:
         st.session_state.premium_unlocked = False
 
-    query_params = st.query_params
-    if query_params.get("payment") == ["success"]:
-        session_id = query_params.get("session_id", [""])[0]
+    # Check for successful payment
+    if st.query_params.get("payment") == ["success"]:
+        session_id = st.query_params.get("session_id", [""])[0]
         if session_id:
             try:
                 session = stripe.checkout.Session.retrieve(session_id)
                 if session.payment_status == 'paid':
                     st.session_state.premium_unlocked = True
                     st.rerun()
-            except:
-                pass
+            except Exception as e:
+                st.error(f"Payment verification failed: {str(e)}")
 
+    # Show locked state if not unlocked
     if not st.session_state.premium_unlocked:
         st.markdown("""
         <div style='text-align: center; padding: 2rem; border: 2px dashed #bb377d; border-radius: 10px;'>
@@ -606,13 +606,19 @@ with tab4:
         """, unsafe_allow_html=True)
 
         if st.button("💳 Unlock Premium Features", type="primary"):
-            checkout_url = create_stripe_checkout()
-            if checkout_url:
-                js = f"window.open('{checkout_url}')"
-                st.components.v1.html(f"<script>{js}</script>", height=0)
+            if not stripe.api_key:
+                st.error("Payment system not configured - please contact support")
+            else:
+                checkout_url = create_stripe_checkout()
+                if checkout_url:
+                    js = f"window.open('{checkout_url}')"
+                    html(f"<script>{js}</script>", height=0)
         st.stop()
 
+    # Show premium content if unlocked
     st.success("🎉 Premium Experience Unlocked! Welcome to your personal fashion studio")
+    
+    # Rest of your premium content tabs...
 
     # Create subtabs INSIDE tab4
     tab_roast, tab_glowup, tab_diagnostic = st.tabs([
