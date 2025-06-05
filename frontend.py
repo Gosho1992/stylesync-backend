@@ -32,10 +32,16 @@ def stripe_verification_script():
 
 def create_stripe_checkout():
     try:
-        current_url = st.experimental_get_query_params().get("current_url", [""])[0]
+        # Get the current URL using the new query_params method
+        current_url = st.query_params.get("current_url", [""])[0]
         if not current_url:
             current_url = "https://your-app-name.streamlit.app"  # CHANGE TO YOUR URL
         
+        # Verify Stripe API key is set
+        if not stripe.api_key:
+            st.error("Stripe payment processing is not properly configured")
+            return None
+
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=['card'],
             line_items=[{
@@ -579,7 +585,7 @@ with tab4:
     if 'premium_unlocked' not in st.session_state:
         st.session_state.premium_unlocked = False
 
-    query_params = st.experimental_get_query_params()
+    query_params = st.query_params
     if query_params.get("payment") == ["success"]:
         session_id = query_params.get("session_id", [""])[0]
         if session_id:
