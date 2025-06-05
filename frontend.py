@@ -9,42 +9,33 @@ import io
 import time
 from textwrap import wrap
 import re
-
-
-st.set_page_config(page_title="StyleWithAI", layout="wide")
-
-
 import stripe
 import base64
 from dotenv import load_dotenv
 import os
-
-load_dotenv()
-
-
 from streamlit.components.v1 import html
 
-# Add this function definition
+# Initialize environment first
+load_dotenv()
+
+st.set_page_config(page_title="StyleWithAI", layout="wide")
+
+# ----- Stripe Functions -----
 def stripe_verification_script():
     return """
     <script>
-    // Check for Stripe payment success
     if(window.location.search.includes('payment=success')) {
-        // Store payment verification in sessionStorage
         sessionStorage.setItem('stripePaymentVerified', 'true');
     }
     </script>
     """
 
-
 def create_stripe_checkout():
     try:
-        # Get the current URL for redirects (works in both local and production)
         current_url = st.experimental_get_query_params().get("current_url", [""])[0]
         if not current_url:
-            current_url = "https://your-app-name.streamlit.app"  # Replace with your actual URL
+            current_url = "https://your-app-name.streamlit.app"  # CHANGE TO YOUR URL
         
-        # Create checkout session
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=['card'],
             line_items=[{
@@ -54,7 +45,7 @@ def create_stripe_checkout():
                         'name': 'StyleWithAI Premium',
                         'description': 'Unlocks advanced fashion AI features',
                     },
-                    'unit_amount': 500,  # $5.00
+                    'unit_amount': 500,
                 },
                 'quantity': 1,
             }],
@@ -62,81 +53,24 @@ def create_stripe_checkout():
             success_url=f"{current_url}?payment=success&session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=current_url,
             metadata={
-                "user_id": "streamlit_user",  # Replace with actual user ID if available
+                "user_id": "streamlit_user",
                 "feature": "premium_access"
             }
         )
         return checkout_session.url
-    
     except stripe.error.StripeError as e:
-        st.error(f"Payment processing error: {str(e)}")
+        st.error(f"Payment error: {str(e)}")
         return None
     except Exception as e:
         st.error(f"Unexpected error: {str(e)}")
         return None
 
-# Add this at the top with your other imports
-import base64
-import io
-from PIL import Image
-
+# ----- Helper Functions -----
 def img_to_base64(img):
-    """Convert PIL Image to base64 string"""
     buffered = io.BytesIO()
     img.save(buffered, format="PNG")
     return base64.b64encode(buffered.getvalue()).decode("utf-8")
 
-
-html(stripe_verification_script())
-
-# Initialize OpenAI client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-# ---------- Welcome Splash (Once per session) ----------
-if "show_welcome" not in st.session_state:
-    st.session_state.show_welcome = True
-
-if st.session_state.show_welcome:
-    st.markdown("""
-        <div style='background: linear-gradient(to right, #fbd3e9, #bb377d);
-                    height:100vh; display:flex; flex-direction:column;
-                    justify-content:center; align-items:center;
-                    color: white; text-align:center;'>
-            <h1 style='font-size: 4rem;'>Welcome to StyleWithAI</h1>
-            <p style='font-size: 1.5rem;'>Your AI-powered clothing assistant</p>
-        </div>
-    """, unsafe_allow_html=True)
-    time.sleep(5)
-    st.session_state.show_welcome = False
-    st.rerun()
-
-st.markdown(
-    """
-    <style>
-    html, body, [class*="css"]  {
-        color: black !important;
-    }
-
-    div[data-testid="stMarkdownContainer"] {
-        color: black !important;
-    }
-
-    h1, h2, h3, h4, h5, h6, p, span {
-        color: black !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-
-openai.api_key = st.secrets["OPENAI_API_KEY"]
-
-stripe.api_key = os.getenv("STRIPE_API_KEY")
-
-
-
-# ---------- Helper for Long Translations ----------
 def translate_long_text(text, target_lang):
     chunks = wrap(text, width=4500)
     translated_chunks = [
@@ -145,7 +79,6 @@ def translate_long_text(text, target_lang):
     ]
     return "\n\n".join(translated_chunks)
 
-# ---------- Helper to Format Text (Improved) ----------
 def format_text_block(text):
     sections = re.split(r'\n\d+\.', text)
     if len(sections) > 1:
@@ -227,7 +160,55 @@ def get_section_emoji(text):
         return "🎉"
     return "✨"
 
-# ---------- CSS ----------
+def render_style_card(store, products, price_range):
+    st.markdown(f"""
+    <div style='
+        background: white;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 10px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-left: 4px solid #bb377d;
+    '>
+        <h4 style='margin:0; color: #bb377d;'>{store}</h4>
+        <p style='margin:5px 0;'>{products}</p>
+        <p style='margin:0; font-size:0.9em; color:#666;'>{price_range}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+# ----- Initialize APIs -----
+# Get API key from secrets or environment
+openai_api_key = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
+stripe.api_key = os.getenv("STRIPE_API_KEY") or st.secrets.get("STRIPE_API_KEY")
+
+if not openai_api_key:
+    st.error("OpenAI API key not found! Check your environment variables or secrets.")
+    st.stop()
+
+client = OpenAI(api_key=openai_api_key)
+
+# Inject Stripe verification script
+html(stripe_verification_script())
+
+# ---------- Welcome Splash ----------
+if "show_welcome" not in st.session_state:
+    st.session_state.show_welcome = True
+
+if st.session_state.show_welcome:
+    st.markdown("""
+        <div style='background: linear-gradient(to right, #fbd3e9, #bb377d);
+                    height:100vh; display:flex; flex-direction:column;
+                    justify-content:center; align-items:center;
+                    color: white; text-align:center;'>
+            <h1 style='font-size: 4rem;'>Welcome to StyleWithAI</h1>
+            <p style='font-size: 1.5rem;'>Your AI-powered clothing assistant</p>
+        </div>
+    """, unsafe_allow_html=True)
+    time.sleep(3)
+    st.session_state.show_welcome = False
+    st.rerun()
+
+# ---------- CSS Styling ----------
 st.markdown("""
     <style>
         .stApp {
@@ -287,7 +268,7 @@ st.markdown("""
 
 # ---------- Sidebar ----------
 st.sidebar.image("assets/stylewithai_logo.png", width=100)
-st.sidebar.title("👗 Stylewithai")
+st.sidebar.title("👗 StyleWithAI")
 st.sidebar.markdown("""
 Your AI-powered fashion assistant 👚  
 Upload your clothing item and get personalized fashion advice ✨
@@ -316,7 +297,7 @@ lang_codes = {
 # ---------- Tabs ----------
 tab1, tab2, tab3, tab4 = st.tabs(["👕 Outfit Suggestion", "✈️ Travel Assistant", "📊 Trends", "AI Mirror of Truth"])
 
-# ---------- Tab 1: Outfit Suggestion (Error-handled) ----------
+# ---------- Tab 1: Outfit Suggestion ----------
 with tab1:
     st.header("👗 Personal Style Architect")
 
@@ -353,7 +334,7 @@ with tab1:
     if st.session_state.uploaded_file:
         st.image(Image.open(st.session_state.uploaded_file), caption="🎨 Your Style Foundation", width=300)
 
-    # ✅ Image Check Before Generate
+    # Generate button
     if st.button("✨ Generate Masterpiece", type="primary", use_container_width=True):
         if not st.session_state.uploaded_file:
             st.warning("⚠️ Please upload an image before generating your masterpiece.")
@@ -434,7 +415,7 @@ with tab1:
                 audio_bytes.seek(0)
                 st.audio(audio_bytes, format="audio/mp3")
 
-        # ✅ Leonardo AI Visualization Section
+        # Leonardo AI Visualization Section
         if hasattr(st.session_state, 'image_prompt') and st.session_state.image_prompt:
             with st.expander("🖼️ Visualize Your Style (Leonardo AI Prompt)", expanded=True):
                 st.markdown("#### 📸 AI-Ready Prompt for Visual Generation")
@@ -501,7 +482,7 @@ with tab2:
         )
 
         with st.spinner(f"✈️ Researching fashion norms for {destination}..."):
-            response = openai.chat.completions.create(
+            response = client.chat.completions.create(
                 model="gpt-4",
                 messages=[
                     {"role": "system", "content": "You are a concise travel fashion advisor. Use bullet points, emojis, and keep suggestions very brief."},
@@ -560,7 +541,7 @@ with tab3:
         )
 
         with st.spinner(f"🔍 Analyzing {region} fashion trends..."):
-            response = openai.chat.completions.create(
+            response = client.chat.completions.create(
                 model="gpt-4",
                 messages=[
                     {"role": "system", "content": "You are a fashion trends expert. Provide concise, emoji-rich trend reports."},
@@ -591,8 +572,7 @@ with tab3:
             else:
                 st.markdown(f"<div class='trend-item'>{translated}</div>", unsafe_allow_html=True)
 
-
-# Then in your tab4 section, fix the indentation:
+# ---------- Tab 4: AI Mirror of Truth ----------
 with tab4:
     st.header("✨ AI Mirror of Truth – Premium Experience")
     
@@ -897,8 +877,3 @@ Avoid links and fake stores. Be practical, relevant, and region-aware.
                         except Exception as e:
                             st.error(f"❌ Analysis failed: {str(e)}")
                             st.info("Tip: Use a clear photo with your face and full outfit visible.")
-
-
-
-
-
