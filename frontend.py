@@ -636,48 +636,6 @@ with tab4:
         "🔍 Full Diagnostic",
     ])
     
-    with tab4:
-    st.header("✨ AI Mirror of Truth – Premium Experience")
-    
-    if 'premium_unlocked' not in st.session_state:
-        st.session_state.premium_unlocked = False
-
-    query_params = st.experimental_get_query_params()
-    if query_params.get("payment") == ["success"]:
-        session_id = query_params.get("session_id", [""])[0]
-        if session_id:
-            try:
-                session = stripe.checkout.Session.retrieve(session_id)
-                if session.payment_status == 'paid':
-                    st.session_state.premium_unlocked = True
-                    st.rerun()
-            except:
-                pass
-
-    if not st.session_state.premium_unlocked:
-        st.markdown("""
-        <div style='text-align: center; padding: 2rem; border: 2px dashed #bb377d; border-radius: 10px;'>
-            <h3 style='color: #bb377d;'>🔒 Premium Feature Locked</h3>
-            <p>Unlock AI-powered outfit analysis for $5</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-        if st.button("💳 Unlock Premium Features", type="primary"):
-            checkout_url = create_stripe_checkout()
-            if checkout_url:
-                js = f"window.open('{checkout_url}')"
-                st.components.v1.html(f"<script>{js}</script>", height=0)
-        st.stop()
-
-    st.success("🎉 Premium Experience Unlocked! Welcome to your personal fashion studio")
-
-    # Create subtabs INSIDE tab4
-    tab_roast, tab_glowup, tab_diagnostic = st.tabs([
-        "🔥 Brutal Roast", 
-        "💎 Glow-Up Plan", 
-        "🔍 Full Diagnostic",
-    ])
-    
     # Tab Roast content
     with tab_roast:
         st.subheader("💋 Outfit Roast Me")
