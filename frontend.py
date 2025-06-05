@@ -39,6 +39,12 @@ def stripe_verification_script():
 
 def create_stripe_checkout():
     try:
+        # Get the current URL for redirects (works in both local and production)
+        current_url = st.experimental_get_query_params().get("current_url", [""])[0]
+        if not current_url:
+            current_url = "https://your-app-name.streamlit.app"  # Replace with your actual URL
+        
+        # Create checkout session
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=['card'],
             line_items=[{
@@ -46,18 +52,27 @@ def create_stripe_checkout():
                     'currency': 'usd',
                     'product_data': {
                         'name': 'StyleWithAI Premium',
+                        'description': 'Unlocks advanced fashion AI features',
                     },
-                    'unit_amount': 500,
+                    'unit_amount': 500,  # $5.00
                 },
                 'quantity': 1,
             }],
             mode='payment',
-            success_url=st.experimental_get_query_params().get("success_url", ["http://localhost:8501?payment=success"])[0],
-            cancel_url=st.experimental_get_query_params().get("cancel_url", ["http://localhost:8501"])[0],
+            success_url=f"{current_url}?payment=success&session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=current_url,
+            metadata={
+                "user_id": "streamlit_user",  # Replace with actual user ID if available
+                "feature": "premium_access"
+            }
         )
         return checkout_session.url
+    
+    except stripe.error.StripeError as e:
+        st.error(f"Payment processing error: {str(e)}")
+        return None
     except Exception as e:
-        st.error(f"Failed to create checkout: {str(e)}")
+        st.error(f"Unexpected error: {str(e)}")
         return None
 
 # Add this at the top with your other imports
@@ -118,7 +133,7 @@ st.markdown(
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-stripe.api_key = os.getenv("STRIPE_API_KEY"))
+stripe.api_key = os.getenv("STRIPE_API_KEY")
 
 
 
