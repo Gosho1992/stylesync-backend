@@ -1,5 +1,5 @@
 # ✅ Corrected frontend.py with all name updates from StyleSync → StyleWithAI
-import openai
+from openai import OpenAI
 import streamlit as st
 import requests
 from PIL import Image
