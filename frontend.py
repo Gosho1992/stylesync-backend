@@ -92,7 +92,6 @@ html(stripe_verification_script())
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
->>>>>>> fae8e85 (Initial commit - StyleWithAI frontend and backend)
 # ---------- Welcome Splash (Once per session) ----------
 if "show_welcome" not in st.session_state:
     st.session_state.show_welcome = True
