@@ -5,6 +5,7 @@ import openai
 from werkzeug.utils import secure_filename
 import traceback
 import re  # Added for potential future prompt parsing
+import stripe
 
 # Configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -14,6 +15,38 @@ app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+
+
+
+# Load Stripe secret key from env
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+
+@app.route("/create-checkout-session", methods=["POST"])
+def create_checkout_session():
+    try:
+        YOUR_FRONTEND_URL = "https://gosho1992-stylesync-backend-frontend-0zlcqx.streamlit.app"
+
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[{
+                "price_data": {
+                    "currency": "usd",
+                    "unit_amount": 500,
+                    "product_data": {
+                        "name": "Premium AI Fashion Analysis"
+                    },
+                },
+                "quantity": 1,
+            }],
+            mode="payment",
+            success_url=YOUR_FRONTEND_URL + "?payment=success&session_id={CHECKOUT_SESSION_ID}",
+            cancel_url=YOUR_FRONTEND_URL,
+        )
+        return jsonify({"url": checkout_session.url})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 
 # Global Style Matrix
 STYLE_PROFILES = {

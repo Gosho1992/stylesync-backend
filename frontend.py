@@ -35,39 +35,19 @@ def stripe_verification_script():
 
 def create_stripe_checkout():
     try:
-        # Set current URL explicitly
-        current_url = st.experimental_get_query_params().get("current_url", [""])[0]
-        if not current_url:
-            current_url = "https://your-app-name.streamlit.app"  # CHANGE TO YOUR ACTUAL URL
-        
-        checkout_session = stripe.checkout.Session.create(
-            payment_method_types=['card'],
-            line_items=[{
-                'price_data': {
-                    'currency': 'usd',
-                    'product_data': {
-                        'name': 'StyleWithAI Premium',
-                        'description': 'Unlocks advanced fashion AI features',
-                    },
-                    'unit_amount': 500,  # $5.00
-                },
-                'quantity': 1,
-            }],
-            mode='payment',
-            success_url=f"{current_url}?payment=success&session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=current_url,
-            metadata={
-                "user_id": "streamlit_user",
-                "feature": "premium_access"
-            }
-        )
-        return checkout_session.url
-    except stripe.error.StripeError as e:
+        # Request session from backend
+        response = requests.post("https://stylesync-backend.onrender.com/create-checkout-session")  # Replace with your actual Render backend URL
+
+        if response.status_code == 200:
+            checkout_url = response.json().get("url")
+            return checkout_url
+        else:
+            st.error("Failed to create checkout session.")
+            return None
+    except Exception as e:
         st.error(f"Payment error: {str(e)}")
         return None
-    except Exception as e:
-        st.error(f"Unexpected error: {str(e)}")
-        return None
+
 
 # ----- Helper Functions -----
 def img_to_base64(img):
