@@ -35,7 +35,8 @@ def stripe_verification_script():
 
 def create_stripe_checkout():
     try:
-        current_url = st.query_params.get("current_url", [""])[0]
+        params = st.experimental_get_query_params()
+	current_url = params.get("current_url", [""])[0]
         if not current_url:
             current_url = "https://your-app-name.streamlit.app"  # CHANGE TO YOUR URL
         
