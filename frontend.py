@@ -35,18 +35,19 @@ def stripe_verification_script():
 
 def create_stripe_checkout():
     try:
-        # Request session from backend
-        response = requests.post("https://stylesync-backend.onrender.com/create-checkout-session")  # Replace with your actual Render backend URL
+        # Request Stripe checkout session from backend
+        response = requests.post("https://stylesync-backend.onrender.com/create-checkout-session")
 
         if response.status_code == 200:
             checkout_url = response.json().get("url")
             return checkout_url
         else:
-            st.error("Failed to create checkout session.")
+            st.error("❌ Failed to create checkout session from backend.")
             return None
     except Exception as e:
-        st.error(f"Payment error: {str(e)}")
+        st.error(f"⚠️ Payment error: {str(e)}")
         return None
+
 
 
 # ----- Helper Functions -----

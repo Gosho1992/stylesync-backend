@@ -1,26 +1,27 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import os
 import base64
 import openai
+import stripe
 from werkzeug.utils import secure_filename
 import traceback
-import re  # Added for potential future prompt parsing
-import stripe
+import re
 
-# Configuration
+# --- Configuration ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
+
 app = Flask(__name__)
+CORS(app)  # ✅ Enables cross-origin requests (important for Streamlit frontend)
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")  # Make sure this is set in Render
 
-
-# Load Stripe secret key from env
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
-
+# --- Stripe Checkout Route ---
 @app.route("/create-checkout-session", methods=["POST"])
 def create_checkout_session():
     try:
@@ -39,7 +40,7 @@ def create_checkout_session():
                 "quantity": 1,
             }],
             mode="payment",
-            success_url=YOUR_FRONTEND_URL + "?payment=success&session_id={CHECKOUT_SESSION_ID}",
+            success_url=f"{YOUR_FRONTEND_URL}?payment=success&session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=YOUR_FRONTEND_URL,
         )
         return jsonify({"url": checkout_session.url})
@@ -47,8 +48,7 @@ def create_checkout_session():
         return jsonify({"error": str(e)}), 500
 
 
-
-# Global Style Matrix
+# --- Style Detection Logic ---
 STYLE_PROFILES = {
     "south_asian": {
         "keywords": ["kurti", "salwar", "lehenga", "sari", "jhumka"],
@@ -102,6 +102,7 @@ STYLE_PROFILES = {
     }
 }
 
+
 def detect_style(image_b64):
     response = client.chat.completions.create(
         model="gpt-4o",
@@ -114,12 +115,7 @@ def detect_style(image_b64):
                 "role": "user",
                 "content": [
                     {"type": "text", "text": "What fashion culture dominates this outfit?"},
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/jpeg;base64,{image_b64}"
-                        }
-                    }
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}}
                 ]
             }
         ],
@@ -127,17 +123,16 @@ def detect_style(image_b64):
     )
     return response.choices[0].message.content.strip().lower()
 
+
 @app.route("/upload", methods=["POST"])
 def upload():
     try:
         file = request.files['file']
         image_b64 = base64.b64encode(file.read()).decode('utf-8')
 
-        # Detect fashion style
         style = detect_style(image_b64)
         style_profile = STYLE_PROFILES.get(style, STYLE_PROFILES["western"])
 
-        # Filters from frontend
         filters = {
             "occasion": request.form.get("occasion", "Casual"),
             "season": request.form.get("season", "Any"),
@@ -169,7 +164,6 @@ Format:
 ⚡ Final Flair: [1-line quote to boost confidence]
 """
 
-        # Generate outfit suggestion
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
@@ -178,12 +172,7 @@ Format:
                     "role": "user",
                     "content": [
                         {"type": "text", "text": prompt},
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{image_b64}"
-                            }
-                        }
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}}
                     ]
                 }
             ],
@@ -192,8 +181,7 @@ Format:
         )
 
         outfit = response.choices[0].message.content
-        
-        # Generate image prompt for Leonardo AI
+
         image_prompt = (
             f"A {filters['gender'].lower()} wearing {style.replace('_', ' ')} fashion, "
             f"{filters['mood']} mood, {filters['occasion']} occasion. "
@@ -206,17 +194,15 @@ Format:
             "status": "success",
             "style": style,
             "fashion_suggestion": outfit,
-            "image_prompt": image_prompt,  # New field for Leonardo AI
+            "image_prompt": image_prompt,
             "meta": filters
         })
 
     except Exception as e:
         print("❌ ERROR TRACEBACK:")
         print(traceback.format_exc())
-        return jsonify({
-            "error": str(e),
-            "trace": traceback.format_exc()
-        }), 500
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
