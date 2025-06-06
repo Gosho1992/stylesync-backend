@@ -561,7 +561,7 @@ with tab3:
 # ---------- Tab 4: AI Mirror of Truth ----------
 with tab4:
     st.header("✨ AI Mirror of Truth – Premium Experience")
-    
+
     # Check payment status
     if 'premium_unlocked' not in st.session_state:
         st.session_state.premium_unlocked = False
@@ -588,51 +588,34 @@ with tab4:
         """, unsafe_allow_html=True)
 
         if st.button("💳 Unlock Premium Features", type="primary"):
-    		if not stripe.api_key:
-        st.error("Payment system not configured - please contact support")
-    		else:
-        # Set current URL explicitly before creating checkout
-        	current_url = st.experimental_get_query_params().get("current_url", [""])[0]
-        if not current_url:
-            current_url = "https://your-app-name.streamlit.app"  # CHANGE TO YOUR ACTUAL URL
-        
-        st.experimental_set_query_params(current_url=current_url)
-        
-        checkout_url = create_stripe_checkout()
-        if checkout_url:
-            js = f"window.open('{checkout_url}', '_blank')"  # Open in new tab
-            html(f"<script>{js}</script>", height=0)
-        st.stop()
+            if not stripe.api_key:
+                st.error("Payment system not configured - please contact support")
+            else:
+                # Set current URL explicitly before creating checkout
+                current_url = st.experimental_get_query_params().get("current_url", [""])[0]
+                if not current_url:
+                    current_url = "https://gosho1992-stylesync-backend-frontend-0zlcqx.streamlit.app/"  # CHANGE THIS
 
+                st.experimental_set_query_params(current_url=current_url)
 
-if st.button("💳 Unlock Premium Features", type="primary"):
-    if not stripe.api_key:
-        st.error("Payment system not configured - please contact support")
+                checkout_url = create_stripe_checkout()
+                if checkout_url:
+                    js = f"window.open('{checkout_url}', '_blank')"
+                    html(f"<script>{js}</script>", height=0)
+                st.stop()
+
     else:
-        # Set current URL explicitly before creating checkout
-        current_url = st.experimental_get_query_params().get("current_url", [""])[0]
-        if not current_url:
-            current_url = "https://your-app-name.streamlit.app"  # CHANGE TO YOUR ACTUAL URL
-        
-        st.experimental_set_query_params(current_url=current_url)
-        
-        checkout_url = create_stripe_checkout()
-        if checkout_url:
-            js = f"window.open('{checkout_url}', '_blank')"  # Open in new tab
-            html(f"<script>{js}</script>", height=0)
-        st.stop()
+        # Show premium content if unlocked
+        st.success("🎉 Premium Experience Unlocked! Welcome to your personal fashion studio")
 
-    # Show premium content if unlocked
-    st.success("🎉 Premium Experience Unlocked! Welcome to your personal fashion studio")
-    
-    # Rest of your premium content tabs...
+        # Subtabs for premium features
+        tab_roast, tab_glowup, tab_diagnostic = st.tabs([
+            "🔥 Brutal Roast", 
+            "💎 Glow-Up Plan", 
+            "🔍 Full Diagnostic",
+        ])
 
-    # Create subtabs INSIDE tab4
-    tab_roast, tab_glowup, tab_diagnostic = st.tabs([
-        "🔥 Brutal Roast", 
-        "💎 Glow-Up Plan", 
-        "🔍 Full Diagnostic",
-    ])
+
     
     # Tab Roast content
     with tab_roast:
