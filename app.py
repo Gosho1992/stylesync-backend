@@ -6,12 +6,12 @@ import openai
 import stripe
 from werkzeug.utils import secure_filename
 import traceback
-import re
+import logging
 from dotenv import load_dotenv
 
-
-
 # --- Configuration ---
+load_dotenv()
+
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise ValueError("Missing OPENAI_API_KEY environment variable")
@@ -20,13 +20,18 @@ STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 if not STRIPE_SECRET_KEY:
     raise ValueError("Missing STRIPE_SECRET_KEY environment variable")
 
-# Initialize clients
-client = openai.OpenAI(api_key=OPENAI_API_KEY)
+# Initialize Stripe client
 stripe.api_key = STRIPE_SECRET_KEY
 
+# Initialize Flask app
 app = Flask(__name__)
-CORS(app)  # Enable CORS for frontend requests
+CORS(app)
 
+# Enable logging
+logging.basicConfig(level=logging.DEBUG)
+app.logger.info("Flask app started successfully")
+
+# Upload config
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
@@ -35,10 +40,14 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload size
 # --- Health Check Endpoint ---
 @app.route("/health", methods=["GET"])
 def health_check():
-    return jsonify({"status": "healthy", "services": {
-        "openai": bool(OPENAI_API_KEY),
-        "stripe": bool(STRIPE_SECRET_KEY)
-    }})
+    app.logger.info("Health check called")
+    return jsonify({
+        "status": "healthy",
+        "services": {
+            "openai_key_present": bool(OPENAI_API_KEY),
+            "stripe_key_present": bool(STRIPE_SECRET_KEY)
+        }
+    })
 
 # --- Stripe Checkout ---
 @app.route("/create-checkout-session", methods=["POST"])
@@ -67,6 +76,7 @@ def create_checkout_session():
                 "user_ip": request.remote_addr
             }
         )
+        app.logger.info("Stripe checkout session created successfully")
         return jsonify({"url": checkout_session.url})
     except stripe.error.StripeError as e:
         app.logger.error(f"Stripe error: {str(e)}")
@@ -75,63 +85,13 @@ def create_checkout_session():
         app.logger.error(f"Checkout error: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
 
-# --- Style Profiles ---
-STYLE_PROFILES = {
-    "south_asian": {
-        "keywords": ["kurti", "salwar", "lehenga", "sari", "jhumka"],
-        "prompt": """Suggest authentic South Asian styling with:
-- Traditional garment names
-- Regional fabric knowledge
-- Cultural occasion guidance
-- Jewelry pairings"""
-    },
-    "east_asian": {
-        "keywords": ["hanbok", "qipao", "kimono", "samfu"],
-        "prompt": """Recommend East Asian fashion with:
-- Proper garment terminology
-- Seasonal considerations
-- Modern fusion ideas"""
-    },
-    "western": {
-        "keywords": ["blazer", "jeans", "dress", "sneakers"],
-        "prompt": """Suggest contemporary Western looks with:
-- Current runway trends
-- Streetwear influences
-- Brand references"""
-    },
-    "middle_eastern": {
-        "keywords": ["thobe", "abaya", "kandura", "keffiyeh"],
-        "prompt": """Style Middle Eastern attire with:
-- Cultural modesty standards
-- Luxury fabric choices
-- Occasion-specific details"""
-    },
-    "african": {
-        "keywords": ["dashiki", "kitenge", "gele", "boubou"],
-        "prompt": """Celebrate African fashion by:
-- Incorporating bold prints and textures
-- Reflecting heritage and identity
-- Balancing tradition and trend"""
-    },
-    "latin_american": {
-        "keywords": ["poncho", "guayabera", "pollera", "huipil"],
-        "prompt": """Style Latin American outfits with:
-- Vibrant cultural influences
-- Traditional silhouettes
-- Artisan embroidery and flair"""
-    },
-    "north_american": {
-        "keywords": ["flannel", "denim jacket", "cowboy boots", "varsity jacket"],
-        "prompt": """Channel North American fashion with:
-- Subcultural streetwear or classic prep
-- Layering for versatility
-- Regional inspirations (NYC, LA, Texas)"""
-    }
-}
-
 # --- Style Detection ---
 def detect_style(image_b64):
+    app.logger.info("Detecting style...")
     try:
+        # Initialize OpenAI client INSIDE the function (safe)
+        client = openai.OpenAI(api_key=OPENAI_API_KEY)
+
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
@@ -150,7 +110,9 @@ def detect_style(image_b64):
             max_tokens=100,
             timeout=10
         )
-        return response.choices[0].message.content.strip().lower()
+        style = response.choices[0].message.content.strip().lower()
+        app.logger.info(f"Detected style: {style}")
+        return style
     except Exception as e:
         app.logger.error(f"Style detection failed: {str(e)}")
         return "western"  # fallback
@@ -180,65 +142,11 @@ def upload():
 
         # Process image
         style = detect_style(image_b64)
-        style_profile = STYLE_PROFILES.get(style, STYLE_PROFILES["western"])
 
-        # Get filters
-        filters = {
-            "occasion": request.form.get("occasion", "Casual"),
-            "season": request.form.get("season", "Any"),
-            "gender": request.form.get("gender", "Woman"),
-            "body_type": request.form.get("body_type", "Average"),
-            "age": request.form.get("age", "20s"),
-            "mood": request.form.get("mood", "Confident")
-        }
-
-        prompt = f"""
-As a {style.replace('_', ' ').title()} Fashion Concierge, generate a culturally-inspired outfit based on the uploaded item.
-
-{style_profile['prompt']}
-
-Personalize using these traits:
-- Body Type: {filters['body_type']} (optimize fit)
-- Mood: {filters['mood']}
-- Occasion: {filters['occasion']}
-- Season: {filters['season']}
-
-Format:
-
-## Signature Look: [Theme Name]
-"🌟 Vibe: [Mood/Style]"
-"👗 Garment: [Key item + detail]"
-"🧥 Layer: [Adaptation layer + weather]"
-"💎 Accents: [Three accessories with cultural touch]"
-"📏 Fit Tip: [Fit advice based on body type]"
-"⚡ Final Flair: [1-line quote to boost confidence]"
-"""
-
-        # Generate outfit suggestion
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are a globally-minded fashion expert."},
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}}
-                    ]
-                }
-            ],
-            temperature=0.7,
-            max_tokens=1200,
-            timeout=20
-        )
-
-        outfit = response.choices[0].message.content
-
+        # Example response:
         return jsonify({
             "status": "success",
-            "style": style,
-            "fashion_suggestion": outfit,
-            "meta": filters
+            "style": style
         })
 
     except openai.APIError as e:
