@@ -80,6 +80,19 @@ def format_text_block(text):
             formatted += "\n"
         return formatted
 
+def check_payment_status():
+    if st.query_params.get("payment") == "success":
+        session_id = st.query_params.get("session_id", "")
+        if session_id:
+            try:
+                session = stripe.checkout.Session.retrieve(session_id)
+                if session.payment_status == 'paid':
+                    st.session_state.premium_unlocked = True
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Payment verification failed: {str(e)}")
+
+
     paragraphs = text.split("\n")
     formatted = ""
     current_section = ""
@@ -567,16 +580,7 @@ with tab4:
         st.session_state.premium_unlocked = False
 
     # Payment verification
-    if st.query_params.get("payment") == ["success"]:
-        session_id = st.query_params.get("session_id", [""])[0]
-        if session_id:
-            try:
-                session = stripe.checkout.Session.retrieve(session_id)
-                if session.payment_status == 'paid':
-                    st.session_state.premium_unlocked = True
-                    st.rerun()
-            except Exception as e:
-                st.error(f"Payment verification failed: {str(e)}")
+    check_payment_status()
 
     if not st.session_state.premium_unlocked:
         # Show locked state
@@ -595,7 +599,8 @@ with tab4:
                 if checkout_url:
                     js = f"window.open('{checkout_url}', '_blank')"
                     html(f"<script>{js}</script>", height=0)
-                st.stop()
+                else:
+		    st.error("Failed to create payment session")
     else:
         # Show premium content ONLY when unlocked
         st.success("🎉 Premium Experience Unlocked! Welcome to your personal fashion studio")
