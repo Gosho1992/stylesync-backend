@@ -559,7 +559,7 @@ with tab3:
                 st.markdown(f"<div class='trend-item'>{translated}</div>", unsafe_allow_html=True)
 
 # ---------- Tab 4: AI Mirror of Truth ----------
-tab4:
+with tab4:
     st.header("✨ AI Mirror of Truth – Premium Experience")
 
     # Check payment status
