@@ -9,8 +9,7 @@ import traceback
 import re
 from dotenv import load_dotenv
 
-# --- Load environment variables ---
-load_dotenv()
+
 
 # --- Configuration ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
