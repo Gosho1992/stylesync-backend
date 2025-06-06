@@ -597,8 +597,9 @@ with tab4:
             else:
                 checkout_url = create_stripe_checkout()
                 if checkout_url:
-                    js = f"window.open('{checkout_url}', '_blank')"
-                    html(f"<script>{js}</script>", height=0)
+                    	st.markdown(f'<a href="{checkout_url}" target="_blank">👉 Pay with Stripe (Secure Checkout)</a>', unsafe_allow_html=True)
+            		st.info("Click the above button to proceed with payment. After payment, return here to unlock Premium Features.")
+            		st.stop()
                 else:
                     st.error("Failed to create payment session")
 
