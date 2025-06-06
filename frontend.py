@@ -574,7 +574,7 @@ with tab3:
 # ---------- Tab 4: AI Mirror of Truth ----------
 with tab4:
     st.header("✨ AI Mirror of Truth – Premium Experience")
-    
+
     # Payment status check
     if 'premium_unlocked' not in st.session_state:
         st.session_state.premium_unlocked = False
@@ -600,22 +600,22 @@ with tab4:
                     js = f"window.open('{checkout_url}', '_blank')"
                     html(f"<script>{js}</script>", height=0)
                 else:
-			st.error("Failed to create payment session")
+                    st.error("Failed to create payment session")
+
     else:
         # Show premium content ONLY when unlocked
         st.success("🎉 Premium Experience Unlocked! Welcome to your personal fashion studio")
-        
+
         # Nested tabs for premium features
         tab_roast, tab_glowup, tab_diagnostic = st.tabs([
             "🔥 Brutal Roast", 
             "💎 Glow-Up Plan", 
             "🔍 Full Diagnostic"
         ])
-    
-        # Tab Roast content
+
+        # --- Tab Roast content ---
         with tab_roast:
             st.subheader("💋 Outfit Roast Me")
-            
             with st.expander("📸 Drop Your Look Here", expanded=True):
                 roast_img = st.file_uploader(
                     "Upload that questionable outfit... we won't judge (okay maybe a little)", 
@@ -627,7 +627,7 @@ with tab4:
                 if roast_img:
                     img = Image.open(roast_img)
                     st.image(img, caption="Oh honey...", use_container_width=True)
-                    
+
                     if st.button("🔥 Roast Me Like I'm Zendaya's Backup Dancer"):
                         with st.spinner("Glam squad is assembling the sass..."):
                             try:
@@ -636,23 +636,23 @@ with tab4:
                                 ROAST_PROMPT = """You're a fashionista with *opinions*. Give a flirty, shady-but-loving roast:
                                 
 1. **First Impression** (1 sassy sentence)  
-   *"Oh you woke up and chose... this?"*  
+*"Oh you woke up and chose... this?"*  
 
 2. **3 Hot Takes** (emoji + roast)  
-   🧥 *"That jacket's giving 'I raided my dad's closet'"*  
-   👖 *"Those jeans? More like *why*nses"*  
+🧥 *"That jacket's giving 'I raided my dad's closet'"*  
+👖 *"Those jeans? More like *why*nses"*  
 
 3. **Celebrity Shade** (playful comparison)  
-   *"Kinda serving 'early 2000s Britney denim-on-denim realness... but make it Walmart"*  
+*"Kinda serving 'early 2000s Britney denim-on-denim realness... but make it Walmart"*  
 
 4. **Glow-Up Tip** (keep it spicy)  
-   *"Add heels and a blazer, or just burn it and start over"*  
+*"Add heels and a blazer, or just burn it and start over"*  
 
 5. **Final Rating** (scale of 1-10 with sass)  
-   *"3/10 – The sidewalk outside Fashion Week would *side-eye* this"*  
+*"3/10 – The sidewalk outside Fashion Week would *side-eye* this"*  
 
 Rules: No body shaming, just outfit shaming!"""
-                                
+
                                 response = client.chat.completions.create(
                                     model="gpt-4o",
                                     messages=[
@@ -683,9 +683,9 @@ Rules: No body shaming, just outfit shaming!"""
                                 """, unsafe_allow_html=True)
 
                             except Exception as e:
-                                st.error("🚨 Error: Couldn't handle the truth (or the server)")
+                                st.error(f"🚨 Error: Couldn't handle the truth ({str(e)})")
 
-        # Tab Glowup content
+        # --- Tab Glowup content ---
         with tab_glowup:
             st.subheader("💎 Personal Stylist's Honest Review")
             with st.expander("📸 Upload Your Outfit", expanded=True):
@@ -730,46 +730,26 @@ Use bullet points with emojis and keep it conversational."""
                                     max_tokens=1000
                                 )
 
-                                # Stylish feedback display
                                 st.markdown(f"""
-                                    <div style='
-                                        background-color: #f8f9fa;
-                                        padding: 20px;
-                                        border-radius: 10px;
-                                        border-left: 5px solid #bb377d;
-                                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                                    '>
-                                        <h3 style='color: #bb377d; margin-top: 0;'>✨ Your Personal Stylist Report</h3>
-                                        {response.choices[0].message.content}
-                                        <p style='font-style: italic; margin-bottom: 0;'>Remember: Confidence is the best accessory!</p>
-                                    </div>
+                                <div style='
+                                    background-color: #f8f9fa;
+                                    padding: 20px;
+                                    border-radius: 10px;
+                                    border-left: 5px solid #bb377d;
+                                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                                '>
+                                    <h3 style='color: #bb377d; margin-top: 0;'>✨ Your Personal Stylist Report</h3>
+                                    {response.choices[0].message.content}
+                                    <p style='font-style: italic; margin-bottom: 0;'>Remember: Confidence is the best accessory!</p>
+                                </div>
                                 """, unsafe_allow_html=True)
-
-                                st.markdown("---")
-                                st.subheader("🖼️ Visual Enhancement Idea")
-
-                                try:
-                                    dalle_response = client.images.generate(
-                                        model="dall-e-3",
-                                        prompt=f"An improved version of this outfit: {response.choices[0].message.content}. Show subtle fashion enhancements only. Do not change the person or pose.",
-                                        size="1024x1024",
-                                        quality="standard"
-                                    )
-                                    st.image(
-                                        dalle_response.data[0].url,
-                                        caption="Subtle improvements our stylist might suggest",
-                                        use_container_width=True
-                                    )
-                                except:
-                                    st.info("⚠️ Visual suggestion unavailable right now - try again later.")
 
                             except Exception as e:
                                 st.error(f"❌ Couldn't get styling advice: {str(e)}")
 
-        # Tab Diagnostic content
+        # --- Tab Diagnostic content ---
         with tab_diagnostic:
             st.subheader("🔍 Comprehensive Style Autopsy")
-
             with st.expander("📸 Upload Your Outfit + Face", expanded=True):
                 diagnostic_img = st.file_uploader(
                     "Upload full-body photo with visible face", 
@@ -778,7 +758,6 @@ Use bullet points with emojis and keep it conversational."""
                     label_visibility="collapsed"
                 )
 
-                # Optional country selection
                 country = st.selectbox(
                     "🌐 Select your country for localized store suggestions (optional)", 
                     options=["", "Pakistan", "Germany", "USA", "UK", "India", "Canada", "Australia"],
@@ -787,7 +766,7 @@ Use bullet points with emojis and keep it conversational."""
 
                 if diagnostic_img:
                     img = Image.open(diagnostic_img)
-                    st.image(img, caption="Outfit to analyze", use_column_width=True)
+                    st.image(img, caption="Outfit to analyze", use_container_width=True)
 
                     if st.button("🧠 Run Full Diagnostic"):
                         with st.spinner("Analyzing 15+ style factors..."):
@@ -834,12 +813,6 @@ Avoid links and fake stores. Be practical, relevant, and region-aware.
 
                                 analysis = response.choices[0].message.content
 
-                                # Split the output into analysis and store list
-                                if "📍" in analysis:
-                                    style_report, store_section = analysis.split("📍", 1)
-                                else:
-                                    style_report, store_section = analysis, ""
-
                                 st.subheader("📋 Your Head-to-Toe Style Report")
                                 st.markdown(f"""
                                 <div style='
@@ -848,28 +821,9 @@ Avoid links and fake stores. Be practical, relevant, and region-aware.
                                     border-radius: 15px;
                                     border-left: 6px solid #6a5acd;
                                 '>
-                                    {style_report.strip()}
+                                    {analysis.strip()}
                                 </div>
                                 """, unsafe_allow_html=True)
-
-                                if store_section:
-                                    st.subheader("🛍️ Suggested Stores for You")
-                                    # Parse lines like: - Mango: Blazers and dresses ($60–120)
-                                    for line in store_section.strip().split("\n"):
-                                        if line.strip().startswith("-"):
-                                            parts = line.strip("-").split(":")
-                                            if len(parts) == 2:
-                                                store = parts[0].strip()
-                                                rest = parts[1].strip()
-                                                if "(" in rest and ")" in rest:
-                                                    product = rest.split("(")[0].strip()
-                                                    price = rest.split("(")[1].replace(")", "").strip()
-                                                    render_style_card(store, product, price)
-
-                                    st.markdown(
-                                        "<p style='margin-top: 10px; font-style: italic;'>Tip: Browse these stores to explore styles similar to your recommendation.</p>",
-                                        unsafe_allow_html=True
-                                    )
 
                             except Exception as e:
                                 st.error(f"❌ Analysis failed: {str(e)}")
