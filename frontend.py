@@ -581,9 +581,6 @@ with tab4:
         """, unsafe_allow_html=True)
 
         if st.button("💳 Unlock Premium Features", type="primary"):
-            if not stripe.api_key:
-                st.error("Payment system not configured - please contact support")
-            else:
                 checkout_url = create_stripe_checkout()
                 if checkout_url:
                     # Open Stripe checkout in new tab
