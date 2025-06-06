@@ -559,7 +559,7 @@ with tab3:
                 st.markdown(f"<div class='trend-item'>{translated}</div>", unsafe_allow_html=True)
 
 # ---------- Tab 4: AI Mirror of Truth ----------
-with tab4:
+tab4:
     st.header("✨ AI Mirror of Truth – Premium Experience")
 
     # Check payment status
@@ -591,12 +591,11 @@ with tab4:
             if not stripe.api_key:
                 st.error("Payment system not configured - please contact support")
             else:
-                # Set current URL explicitly before creating checkout
-                current_url = st.experimental_get_query_params().get("current_url", [""])[0]
+                # Use new Streamlit query param APIs
+                current_url = st.query_params.get("current_url", [""])[0]
                 if not current_url:
-                    current_url = "https://gosho1992-stylesync-backend-frontend-0zlcqx.streamlit.app/"  # CHANGE THIS
-
-                st.experimental_set_query_params(current_url=current_url)
+                    current_url = "https://gosho1992-stylesync-backend-frontend-0zlcqx.streamlit.app"
+                st.query_params["current_url"] = current_url
 
                 checkout_url = create_stripe_checkout()
                 if checkout_url:
@@ -616,7 +615,6 @@ with tab4:
         ])
 
 
-    
     # Tab Roast content
     with tab_roast:
         st.subheader("💋 Outfit Roast Me")
