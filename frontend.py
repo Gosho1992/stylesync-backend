@@ -600,7 +600,7 @@ with tab4:
                     js = f"window.open('{checkout_url}', '_blank')"
                     html(f"<script>{js}</script>", height=0)
                 else:
-		    st.error("Failed to create payment session")
+			st.error("Failed to create payment session")
     else:
         # Show premium content ONLY when unlocked
         st.success("🎉 Premium Experience Unlocked! Welcome to your personal fashion studio")
