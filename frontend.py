@@ -591,30 +591,29 @@ with tab4:
             if not stripe.api_key:
                 st.error("Payment system not configured - please contact support")
             else:
-                # Use new Streamlit query param APIs
+                # Set current URL explicitly before creating checkout
                 current_url = st.query_params.get("current_url", [""])[0]
                 if not current_url:
-                    current_url = "https://gosho1992-stylesync-backend-frontend-0zlcqx.streamlit.app"
+                    current_url = "https://gosho1992-stylesync-backend-frontend-0zlcqx.streamlit.app/"  # CHANGE TO YOUR ACTUAL URL
+                
                 st.query_params["current_url"] = current_url
-
+                
                 checkout_url = create_stripe_checkout()
                 if checkout_url:
-                    js = f"window.open('{checkout_url}', '_blank')"
+                    js = f"window.open('{checkout_url}', '_blank')"  # Open in new tab
                     html(f"<script>{js}</script>", height=0)
                 st.stop()
 
-    else:
-        # Show premium content if unlocked
-        st.success("🎉 Premium Experience Unlocked! Welcome to your personal fashion studio")
-
-        # Subtabs for premium features
-        tab_roast, tab_glowup, tab_diagnostic = st.tabs([
-            "🔥 Brutal Roast", 
-            "💎 Glow-Up Plan", 
-            "🔍 Full Diagnostic",
-        ])
-
-
+    # Show premium content if unlocked
+    st.success("🎉 Premium Experience Unlocked! Welcome to your personal fashion studio")
+    
+    # Create subtabs INSIDE tab4
+    tab_roast, tab_glowup, tab_diagnostic = st.tabs([
+        "🔥 Brutal Roast", 
+        "💎 Glow-Up Plan", 
+        "🔍 Full Diagnostic",
+    ])
+    
     # Tab Roast content
     with tab_roast:
         st.subheader("💋 Outfit Roast Me")
