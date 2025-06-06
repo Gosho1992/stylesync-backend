@@ -604,6 +604,24 @@ with tab4:
             html(f"<script>{js}</script>", height=0)
         st.stop()
 
+
+if st.button("💳 Unlock Premium Features", type="primary"):
+    if not stripe.api_key:
+        st.error("Payment system not configured - please contact support")
+    else:
+        # Set current URL explicitly before creating checkout
+        current_url = st.experimental_get_query_params().get("current_url", [""])[0]
+        if not current_url:
+            current_url = "https://your-app-name.streamlit.app"  # CHANGE TO YOUR ACTUAL URL
+        
+        st.experimental_set_query_params(current_url=current_url)
+        
+        checkout_url = create_stripe_checkout()
+        if checkout_url:
+            js = f"window.open('{checkout_url}', '_blank')"  # Open in new tab
+            html(f"<script>{js}</script>", height=0)
+        st.stop()
+
     # Show premium content if unlocked
     st.success("🎉 Premium Experience Unlocked! Welcome to your personal fashion studio")
     
