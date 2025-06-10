@@ -4,24 +4,29 @@ import os
 import base64
 import openai
 import stripe
-from werkzeug.utils import secure_filename
+import requests
 import traceback
 import logging
 from dotenv import load_dotenv
+from werkzeug.utils import secure_filename
 
 # --- Configuration ---
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+STRIPE_API_KEY = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+GOOGLE_SHEET_API_URL = "https://script.google.com/macros/s/AKfyc66NuoQyt8cI91wtVo6_9Fh2gyVSZJZsqk7GeL7n01K4qywyI2Q71_0mMLOKFRhlK7/exec"
+
 if not OPENAI_API_KEY:
     raise ValueError("Missing OPENAI_API_KEY environment variable")
-
-STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
-if not STRIPE_SECRET_KEY:
+if not STRIPE_API_KEY:
     raise ValueError("Missing STRIPE_SECRET_KEY environment variable")
+if not STRIPE_WEBHOOK_SECRET:
+    raise ValueError("Missing STRIPE_WEBHOOK_SECRET environment variable")
 
 # Initialize Stripe client
-stripe.api_key = STRIPE_SECRET_KEY
+stripe.api_key = STRIPE_API_KEY
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -45,51 +50,15 @@ def health_check():
         "status": "healthy",
         "services": {
             "openai_key_present": bool(OPENAI_API_KEY),
-            "stripe_key_present": bool(STRIPE_SECRET_KEY)
+            "stripe_key_present": bool(STRIPE_API_KEY),
+            "webhook_secret_present": bool(STRIPE_WEBHOOK_SECRET)
         }
     })
-
-# --- Stripe Checkout ---
-@app.route("/create-checkout-session", methods=["POST"])
-def create_checkout_session():
-    try:
-        YOUR_FRONTEND_URL = os.getenv("FRONTEND_URL", "https://gosho1992-stylesync-backend-frontend-0zlcqx.streamlit.app")
-
-        checkout_session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
-            line_items=[{
-                "price_data": {
-                    "currency": "usd",
-                    "unit_amount": 500,
-                    "product_data": {
-                        "name": "Premium AI Fashion Analysis",
-                        "description": "Unlock advanced outfit analysis and personalized recommendations"
-                    },
-                },
-                "quantity": 1,
-            }],
-            mode="payment",
-            success_url=f"{YOUR_FRONTEND_URL}?payment=success&session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=YOUR_FRONTEND_URL,
-            metadata={
-                "service": "fashion_ai",
-                "user_ip": request.remote_addr
-            }
-        )
-        app.logger.info("Stripe checkout session created successfully")
-        return jsonify({"url": checkout_session.url})
-    except stripe.error.StripeError as e:
-        app.logger.error(f"Stripe error: {str(e)}")
-        return jsonify({"error": "Payment processing error"}), 500
-    except Exception as e:
-        app.logger.error(f"Checkout error: {str(e)}")
-        return jsonify({"error": "Internal server error"}), 500
 
 # --- Style Detection ---
 def detect_style(image_b64):
     app.logger.info("Detecting style...")
     try:
-        # Initialize OpenAI client INSIDE the function (safe)
         client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
         response = client.chat.completions.create(
@@ -128,22 +97,17 @@ def upload():
         return jsonify({"error": "No selected file"}), 400
 
     try:
-        # Secure filename and save temporarily
         filename = secure_filename(file.filename)
         temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(temp_path)
 
-        # Read and encode image
         with open(temp_path, "rb") as image_file:
             image_b64 = base64.b64encode(image_file.read()).decode('utf-8')
 
-        # Clean up temp file
         os.remove(temp_path)
 
-        # Process image
         style = detect_style(image_b64)
 
-        # Example response:
         return jsonify({
             "status": "success",
             "style": style
@@ -155,6 +119,51 @@ def upload():
     except Exception as e:
         app.logger.error(f"Upload error: {str(e)}\n{traceback.format_exc()}")
         return jsonify({"error": "Processing failed", "details": str(e)}), 500
+
+# --- Stripe Webhook Endpoint ---
+@app.route("/stripe-webhook", methods=["POST"])
+def stripe_webhook():
+    app.logger.info("Stripe webhook called")
+    payload = request.data
+    sig_header = request.headers.get("stripe-signature", None)
+
+    if not sig_header:
+        app.logger.error("Missing Stripe signature header")
+        return jsonify(success=False), 400
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
+        )
+    except stripe.error.SignatureVerificationError as e:
+        app.logger.error(f"Webhook signature verification failed: {str(e)}")
+        return jsonify(success=False), 400
+    except Exception as e:
+        app.logger.error(f"Webhook error: {str(e)}")
+        return jsonify(success=False), 400
+
+    # Handle checkout.session.completed
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        customer_email = session.get("customer_email")
+
+        app.logger.info(f"Payment completed for email: {customer_email}")
+
+        # Call Google Sheets API to mark as paid
+        try:
+            params = {
+                "email": customer_email,
+                "status": "paid"
+            }
+            response = requests.get(GOOGLE_SHEET_API_URL, params=params, timeout=10)
+            if response.status_code == 200:
+                app.logger.info(f"Marked {customer_email} as paid in Google Sheet")
+            else:
+                app.logger.error(f"Failed to mark paid in Google Sheet: {response.status_code}, {response.text}")
+        except Exception as e:
+            app.logger.error(f"Error calling Google Sheet API: {str(e)}")
+
+    return jsonify(success=True), 200
 
 # --- Run App ---
 if __name__ == "__main__":

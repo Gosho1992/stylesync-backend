@@ -9,47 +9,25 @@ import io
 import time
 from textwrap import wrap
 import re
-import stripe
 import base64
 from dotenv import load_dotenv
 import os
 from streamlit.components.v1 import html
+import stripe
+import requests
 
 # Initialize environment first
 load_dotenv()
 
 st.set_page_config(page_title="StyleWithAI", layout="wide")
 
-stripe.api_key = os.getenv("STRIPE_API_KEY") or st.secrets.get("STRIPE_API_KEY")
 
-# ----- Stripe Functions -----
-def stripe_verification_script():
-    return """
-    <script>
-    if(window.location.search.includes('payment=success')) {
-        // Send message to Streamlit to trigger verification
-        window.parent.postMessage({
-            type: 'streamlit:setComponentValue',
-            value: 'payment_success'
-        }, '*');
-    }
-    </script>
-    """
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")  # Do not hardcode key!
 
-def create_stripe_checkout():
-    try:
-        # Request Stripe checkout session from backend
-        response = requests.post("https://stylesync-backend.onrender.com/create-checkout-session")
+STRIPE_PRICE_ID = "price_1RYNCkB1g7uD1vIapFF9HOwr"
+SUCCESS_URL = "https://gosho1992-stylesync-backend-frontend-0zlcqx.streamlit.app/"
+API_URL = "https://script.google.com/macros/s/AKfyc66NuoQyt8cI91wtVo6_9Fh2gyVSZJZsqk7GeL7n01K4qywyI2Q71_0mMLOKFRhlK7/exec"
 
-        if response.status_code == 200:
-            checkout_url = response.json().get("url")
-            return checkout_url
-        else:
-            st.error("❌ Failed to create checkout session from backend.")
-            return None
-    except Exception as e:
-        st.error(f"⚠️ Payment error: {str(e)}")
-        return None
 
 # ----- Helper Functions -----
 def img_to_base64(img):
@@ -172,17 +150,6 @@ if not openai_api_key:
 
 client = OpenAI(api_key=openai_api_key)
 
-# Initialize session state
-if 'premium_unlocked' not in st.session_state:
-    st.session_state.premium_unlocked = False
-
-# Check for payment success in URL params
-if st.query_params.get("payment") == "success":
-    st.session_state.premium_unlocked = True
-    st.rerun()
-
-# Inject Stripe verification script
-html(stripe_verification_script())
 
 # ---------- Welcome Splash ----------
 if "show_welcome" not in st.session_state:
@@ -566,86 +533,77 @@ with tab3:
             else:
                 st.markdown(f"<div class='trend-item'>{translated}</div>", unsafe_allow_html=True)
 
-# ---------- Tab 4: AI Mirror of Truth ----------
-# ---------- Tab 4: AI Mirror of Truth ----------
 with tab4:
     st.header("✨ AI Mirror of Truth – Premium Experience")
-    
-    if not st.session_state.premium_unlocked:
-        # Show locked state
-        st.markdown("""
-        <div style='text-align: center; padding: 2rem; border: 2px dashed #bb377d; border-radius: 10px;'>
-            <h3 style='color: #bb377d;'>🔒 Premium Feature Locked</h3>
-            <p>Unlock AI-powered outfit analysis for $5</p>
-        </div>
-        """, unsafe_allow_html=True)
 
-        if st.button("💳 Unlock Premium Features", type="primary"):
-                checkout_url = create_stripe_checkout()
-                if checkout_url:
-                    # Open Stripe checkout in new tab
-                    js = f"""
-                    <script>
-                    window.open('{checkout_url}', '_blank');
-                    </script>
-                    """
-                    html(js, height=0)
-                    st.info("Please complete the payment in the new tab that opened. After payment, refresh this page to access premium features.")
-                else:
-                    st.error("Failed to create checkout session")
-    else:
-        # Show premium content ONLY when unlocked
-        st.success("🎉 Premium Experience Unlocked! Welcome to your personal fashion studio")
-        
-        # Rest of your premium tab content remains the same...
-        # Nested tabs for premium features
+    email = st.text_input("Enter your email to access Premium Features 👇")
+    name = st.text_input("Optional: Your name")
+
+    user_is_paid = False
+
+    if email:
+        try:
+            response = requests.get(API_URL)
+            response.raise_for_status()
+            users = response.json()
+            user_record = next((u for u in users if u['email'].strip().lower() == email.strip().lower()), None)
+
+            if user_record and user_record['status'].strip().lower() == "paid":
+                user_is_paid = True
+        except Exception as e:
+            st.error(f"Failed to check payment status: {e}")
+
+    if user_is_paid:
+        st.success("🎉 Premium Experience Enabled! Welcome to your personal fashion studio")
+
+        # Your existing 3 sub-tabs
         tab_roast, tab_glowup, tab_diagnostic = st.tabs([
-            "🔥 Brutal Roast", 
-            "💎 Glow-Up Plan", 
+            "🔥 Brutal Roast",
+            "💎 Glow-Up Plan",
             "🔍 Full Diagnostic"
         ])
-    
-        # Tab Roast content
+
+        # ---- Brutal Roast Tab ----
         with tab_roast:
             st.subheader("💋 Outfit Roast Me")
-            
+
             with st.expander("📸 Drop Your Look Here", expanded=True):
                 roast_img = st.file_uploader(
-                    "Upload that questionable outfit... we won't judge (okay maybe a little)", 
-                    type=["jpg", "jpeg", "png"], 
-                    key="roast_upload", 
+                    "Upload that questionable outfit... we won't judge (okay maybe a little)",
+                    type=["jpg", "jpeg", "png"],
+                    key="roast_upload",
                     label_visibility="collapsed"
                 )
 
                 if roast_img:
                     img = Image.open(roast_img)
                     st.image(img, caption="Oh honey...", use_container_width=True)
-                    
+
                     if st.button("🔥 Roast Me Like I'm Zendaya's Backup Dancer"):
                         with st.spinner("Glam squad is assembling the sass..."):
                             try:
                                 img_b64 = img_to_base64(img)
 
                                 ROAST_PROMPT = """You're a fashionista with *opinions*. Give a flirty, shady-but-loving roast:
-                                
+
 1. **First Impression** (1 sassy sentence)  
-   *"Oh you woke up and chose... this?"*  
+*"Oh you woke up and chose... this?"*  
 
 2. **3 Hot Takes** (emoji + roast)  
-   🧥 *"That jacket's giving 'I raided my dad's closet'"*  
-   👖 *"Those jeans? More like *why*nses"*  
+🧥 *"That jacket's giving 'I raided my dad's closet'"*  
+👖 *"Those jeans? More like *why*nses"*  
 
 3. **Celebrity Shade** (playful comparison)  
-   *"Kinda serving 'early 2000s Britney denim-on-denim realness... but make it Walmart"*  
+*"Kinda serving 'early 2000s Britney denim-on-denim realness... but make it Walmart"*  
 
 4. **Glow-Up Tip** (keep it spicy)  
-   *"Add heels and a blazer, or just burn it and start over"*  
+*"Add heels and a blazer, or just burn it and start over"*  
 
 5. **Final Rating** (scale of 1-10 with sass)  
-   *"3/10 – The sidewalk outside Fashion Week would *side-eye* this"*  
+*"3/10 – The sidewalk outside Fashion Week would *side-eye* this"*  
 
 Rules: No body shaming, just outfit shaming!"""
-                                
+
                                 response = client.chat.completions.create(
                                     model="gpt-4o",
                                     messages=[
@@ -678,7 +636,7 @@ Rules: No body shaming, just outfit shaming!"""
                             except Exception as e:
                                 st.error("🚨 Error: Couldn't handle the truth (or the server)")
 
-        # Tab Glowup content
+        # ---- Glow-Up Plan Tab ----
         with tab_glowup:
             st.subheader("💎 Personal Stylist's Honest Review")
             with st.expander("📸 Upload Your Outfit", expanded=True):
@@ -723,7 +681,6 @@ Use bullet points with emojis and keep it conversational."""
                                     max_tokens=1000
                                 )
 
-                                # Stylish feedback display
                                 st.markdown(f"""
                                     <div style='
                                         background-color: #f8f9fa;
@@ -738,42 +695,22 @@ Use bullet points with emojis and keep it conversational."""
                                     </div>
                                 """, unsafe_allow_html=True)
 
-                                st.markdown("---")
-                                st.subheader("🖼️ Visual Enhancement Idea")
-
-                                try:
-                                    dalle_response = client.images.generate(
-                                        model="dall-e-3",
-                                        prompt=f"An improved version of this outfit: {response.choices[0].message.content}. Show subtle fashion enhancements only. Do not change the person or pose.",
-                                        size="1024x1024",
-                                        quality="standard"
-                                    )
-                                    st.image(
-                                        dalle_response.data[0].url,
-                                        caption="Subtle improvements our stylist might suggest",
-                                        use_container_width=True
-                                    )
-                                except:
-                                    st.info("⚠️ Visual suggestion unavailable right now - try again later.")
-
                             except Exception as e:
                                 st.error(f"❌ Couldn't get styling advice: {str(e)}")
 
-        # Tab Diagnostic content
+        # ---- Full Diagnostic Tab ----
         with tab_diagnostic:
             st.subheader("🔍 Comprehensive Style Autopsy")
-
             with st.expander("📸 Upload Your Outfit + Face", expanded=True):
                 diagnostic_img = st.file_uploader(
-                    "Upload full-body photo with visible face", 
-                    type=["jpg", "jpeg", "png"], 
-                    key="diagnostic_upload", 
+                    "Upload full-body photo with visible face",
+                    type=["jpg", "jpeg", "png"],
+                    key="diagnostic_upload",
                     label_visibility="collapsed"
                 )
 
-                # Optional country selection
                 country = st.selectbox(
-                    "🌐 Select your country for localized store suggestions (optional)", 
+                    "🌐 Select your country for localized store suggestions (optional)",
                     options=["", "Pakistan", "Germany", "USA", "UK", "India", "Canada", "Australia"],
                     index=0
                 )
@@ -825,15 +762,6 @@ Avoid links and fake stores. Be practical, relevant, and region-aware.
                                     max_tokens=1400
                                 )
 
-                                analysis = response.choices[0].message.content
-
-                                # Split the output into analysis and store list
-                                if "📍" in analysis:
-                                    style_report, store_section = analysis.split("📍", 1)
-                                else:
-                                    style_report, store_section = analysis, ""
-
-                                st.subheader("📋 Your Head-to-Toe Style Report")
                                 st.markdown(f"""
                                 <div style='
                                     background-color: #fafafa;
@@ -841,29 +769,33 @@ Avoid links and fake stores. Be practical, relevant, and region-aware.
                                     border-radius: 15px;
                                     border-left: 6px solid #6a5acd;
                                 '>
-                                    {style_report.strip()}
+                                    {response.choices[0].message.content}
                                 </div>
                                 """, unsafe_allow_html=True)
-
-                                if store_section:
-                                    st.subheader("🛍️ Suggested Stores for You")
-                                    # Parse lines like: - Mango: Blazers and dresses ($60–120)
-                                    for line in store_section.strip().split("\n"):
-                                        if line.strip().startswith("-"):
-                                            parts = line.strip("-").split(":")
-                                            if len(parts) == 2:
-                                                store = parts[0].strip()
-                                                rest = parts[1].strip()
-                                                if "(" in rest and ")" in rest:
-                                                    product = rest.split("(")[0].strip()
-                                                    price = rest.split("(")[1].replace(")", "").strip()
-                                                    render_style_card(store, product, price)
-
-                                    st.markdown(
-                                        "<p style='margin-top: 10px; font-style: italic;'>Tip: Browse these stores to explore styles similar to your recommendation.</p>",
-                                        unsafe_allow_html=True
-                                    )
 
                             except Exception as e:
                                 st.error(f"❌ Analysis failed: {str(e)}")
                                 st.info("Tip: Use a clear photo with your face and full outfit visible.")
+
+    else:
+        st.warning("🔒 This is a premium feature. Please complete payment to unlock it.")
+        if st.button("👉 Unlock Premium Now ($5 one-time)"):
+            try:
+                checkout_session = stripe.checkout.Session.create(
+                    payment_method_types=["card"],
+                    mode="payment",
+                    line_items=[{
+                        "price": STRIPE_PRICE_ID,
+                        "quantity": 1
+                    }],
+                    customer_email=email,
+                    success_url=SUCCESS_URL,
+                    cancel_url=SUCCESS_URL,
+                    metadata={
+                        "email": email,
+                        "name": name or "N/A"
+                    }
+                )
+                st.markdown(f"[💳 Click here to pay securely via Stripe]({checkout_session.url})", unsafe_allow_html=True)
+            except Exception as e:
+                st.error(f"Error creating Stripe checkout session: {e}")
