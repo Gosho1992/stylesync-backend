@@ -120,6 +120,36 @@ def upload():
         app.logger.error(f"Upload error: {str(e)}\n{traceback.format_exc()}")
         return jsonify({"error": "Processing failed", "details": str(e)}), 500
 
+# --- Stripe Checkout Session Creation ---
+@app.route("/create-checkout-session", methods=["POST"])
+def create_checkout_session():
+    try:
+        # You can update YOUR_DOMAIN to match your frontend URL if needed
+        YOUR_DOMAIN = "https://gosho1992-stylesync-backend-frontend-0zlcqx.streamlit.app"
+
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': 'usd',
+                    'unit_amount': 500,  # $5.00 in cents
+                    'product_data': {
+                        'name': 'AI-powered outfit analysis',
+                    },
+                },
+                'quantity': 1,
+            }],
+            mode='payment',
+            success_url=YOUR_DOMAIN + '/success',
+            cancel_url=YOUR_DOMAIN + '/cancel',
+        )
+
+        return jsonify({"id": checkout_session.id, "url": checkout_session.url})
+
+    except Exception as e:
+        app.logger.error(f"Error creating checkout session: {str(e)}")
+        return jsonify(error=str(e)), 500
+
 # --- Stripe Webhook Endpoint ---
 @app.route("/stripe-webhook", methods=["POST"])
 def stripe_webhook():
