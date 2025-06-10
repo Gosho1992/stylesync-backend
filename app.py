@@ -9,193 +9,260 @@ import traceback
 import logging
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
+from datetime import datetime
 
 # --- Configuration ---
 load_dotenv()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-STRIPE_API_KEY = os.getenv("STRIPE_SECRET_KEY")
-STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
-GOOGLE_SHEET_API_URL = "https://script.google.com/macros/s/AKfyc66NuoQyt8cI91wtVo6_9Fh2gyVSZJZsqk7GeL7n01K4qywyI2Q71_0mMLOKFRhlK7/exec"
+# Environment variables validation
+REQUIRED_ENV_VARS = {
+    'OPENAI_API_KEY': 'OpenAI API key',
+    'STRIPE_SECRET_KEY': 'Stripe secret key',
+    'STRIPE_WEBHOOK_SECRET': 'Stripe webhook secret',
+    'GOOGLE_SHEET_API_URL': 'Google Sheets API URL'
+}
 
-if not OPENAI_API_KEY:
-    raise ValueError("Missing OPENAI_API_KEY environment variable")
-if not STRIPE_API_KEY:
-    raise ValueError("Missing STRIPE_SECRET_KEY environment variable")
-if not STRIPE_WEBHOOK_SECRET:
-    raise ValueError("Missing STRIPE_WEBHOOK_SECRET environment variable")
+missing_vars = [name for name, desc in REQUIRED_ENV_VARS.items() if not os.getenv(name)]
+if missing_vars:
+    raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
 
-# Initialize Stripe client
-stripe.api_key = STRIPE_API_KEY
-
-# Initialize Flask app
+# Initialize services
+stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
 app = Flask(__name__)
 CORS(app)
 
-# Enable logging
-logging.basicConfig(level=logging.DEBUG)
-app.logger.info("Flask app started successfully")
+# --- Logging Configuration ---
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('app.log')
+    ]
+)
+logger = logging.getLogger(__name__)
 
-# Upload config
-UPLOAD_FOLDER = "uploads"
+# --- Constants ---
+UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload size
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+MAX_FILE_SIZE = 16 * 1024 * 1024  # 16MB
 
-# --- Health Check Endpoint ---
-@app.route("/health", methods=["GET"])
+app.config.update({
+    'UPLOAD_FOLDER': UPLOAD_FOLDER,
+    'MAX_CONTENT_LENGTH': MAX_FILE_SIZE
+})
+
+# --- Helper Functions ---
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def validate_email(email):
+    """Basic email validation"""
+    return '@' in email and '.' in email.split('@')[-1]
+
+# --- API Endpoints ---
+@app.route('/health', methods=['GET'])
 def health_check():
-    app.logger.info("Health check called")
+    """Health check endpoint"""
     return jsonify({
-        "status": "healthy",
-        "services": {
-            "openai_key_present": bool(OPENAI_API_KEY),
-            "stripe_key_present": bool(STRIPE_API_KEY),
-            "webhook_secret_present": bool(STRIPE_WEBHOOK_SECRET)
+        'status': 'healthy',
+        'timestamp': datetime.utcnow().isoformat(),
+        'services': {
+            'openai': bool(os.getenv('OPENAI_API_KEY')),
+            'stripe': bool(os.getenv('STRIPE_SECRET_KEY')),
+            'google_sheets': bool(os.getenv('GOOGLE_SHEET_API_URL'))
         }
-    })
+    }), 200
 
-# --- Style Detection ---
-def detect_style(image_b64):
-    app.logger.info("Detecting style...")
-    try:
-        client = openai.OpenAI(api_key=OPENAI_API_KEY)
-
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "Classify the outfit in the image as ONE of these: south_asian, east_asian, western, middle_eastern, african, latin_american, north_american. Reply with just the keyword (no sentence)."
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": "What fashion culture dominates this outfit?"},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}}
-                    ]
-                }
-            ],
-            max_tokens=100,
-            timeout=10
-        )
-        style = response.choices[0].message.content.strip().lower()
-        app.logger.info(f"Detected style: {style}")
-        return style
-    except Exception as e:
-        app.logger.error(f"Style detection failed: {str(e)}")
-        return "western"  # fallback
-
-# --- Upload Endpoint ---
-@app.route("/upload", methods=["POST"])
-def upload():
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    """Handle image uploads for style detection"""
     if 'file' not in request.files:
-        return jsonify({"error": "No file part"}), 400
-
+        return jsonify({'error': 'No file part'}), 400
+    
     file = request.files['file']
+    
     if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
-
+        return jsonify({'error': 'No selected file'}), 400
+    
+    if not allowed_file(file.filename):
+        return jsonify({'error': 'File type not allowed'}), 400
+    
     try:
+        # Secure filename and save temporarily
         filename = secure_filename(file.filename)
         temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(temp_path)
-
-        with open(temp_path, "rb") as image_file:
-            image_b64 = base64.b64encode(image_file.read()).decode('utf-8')
-
+        
+        # Process image
+        with open(temp_path, 'rb') as img_file:
+            image_b64 = base64.b64encode(img_file.read()).decode('utf-8')
+        
+        # Clean up
         os.remove(temp_path)
-
+        
+        # Detect style (with timeout)
         style = detect_style(image_b64)
-
+        
         return jsonify({
-            "status": "success",
-            "style": style
-        })
-
+            'status': 'success',
+            'style': style,
+            'processed_at': datetime.utcnow().isoformat()
+        }), 200
+        
     except openai.APIError as e:
-        app.logger.error(f"OpenAI API error: {str(e)}")
-        return jsonify({"error": "AI service unavailable", "code": "ai_error"}), 503
+        logger.error(f'OpenAI API error: {str(e)}')
+        return jsonify({
+            'error': 'AI service unavailable',
+            'code': 'ai_error'
+        }), 503
     except Exception as e:
-        app.logger.error(f"Upload error: {str(e)}\n{traceback.format_exc()}")
-        return jsonify({"error": "Processing failed", "details": str(e)}), 500
+        logger.error(f'Upload error: {str(e)}\n{traceback.format_exc()}')
+        return jsonify({
+            'error': 'Processing failed',
+            'details': str(e)
+        }), 500
 
-# --- Stripe Checkout Session Creation ---
-@app.route("/create-checkout-session", methods=["POST"])
+@app.route('/create-checkout-session', methods=['POST'])
 def create_checkout_session():
+    """Create Stripe checkout session"""
+    data = request.get_json()
+    if not data or 'email' not in data:
+        return jsonify({'error': 'Email is required'}), 400
+    
+    email = data['email'].strip()
+    if not validate_email(email):
+        return jsonify({'error': 'Invalid email format'}), 400
+    
     try:
-        # You can update YOUR_DOMAIN to match your frontend URL if needed
-        YOUR_DOMAIN = "https://gosho1992-stylesync-backend-frontend-0zlcqx.streamlit.app"
-
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=['card'],
             line_items=[{
                 'price_data': {
                     'currency': 'usd',
-                    'unit_amount': 500,  # $5.00 in cents
+                    'unit_amount': 500,  # $5.00
                     'product_data': {
-                        'name': 'AI-powered outfit analysis',
+                        'name': 'StyleWithAI Premium',
+                        'description': 'AI-powered outfit analysis'
                     },
                 },
                 'quantity': 1,
             }],
             mode='payment',
-            success_url=YOUR_DOMAIN + '/success',
-            cancel_url=YOUR_DOMAIN + '/cancel',
+            customer_email=email,
+            success_url=os.getenv('SUCCESS_URL', 'https://yourdomain.com/success'),
+            cancel_url=os.getenv('CANCEL_URL', 'https://yourdomain.com/cancel'),
+            metadata={
+                'service': 'stylewithai',
+                'timestamp': datetime.utcnow().isoformat()
+            }
         )
-
-        return jsonify({"id": checkout_session.id, "url": checkout_session.url})
-
+        
+        logger.info(f'Created checkout session for {email}')
+        return jsonify({
+            'sessionId': checkout_session.id,
+            'url': checkout_session.url
+        }), 200
+        
+    except stripe.error.StripeError as e:
+        logger.error(f'Stripe error: {str(e)}')
+        return jsonify({
+            'error': 'Payment processing error',
+            'details': str(e.user_message if hasattr(e, 'user_message') else str(e))
+        }), 500
     except Exception as e:
-        app.logger.error(f"Error creating checkout session: {str(e)}")
-        return jsonify(error=str(e)), 500
+        logger.error(f'Checkout error: {str(e)}')
+        return jsonify({
+            'error': 'Internal server error',
+            'details': str(e)
+        }), 500
 
-# --- Stripe Webhook Endpoint ---
-@app.route("/stripe-webhook", methods=["POST"])
+@app.route('/stripe-webhook', methods=['POST'])
 def stripe_webhook():
-    app.logger.info("Stripe webhook called")
+    """Handle Stripe webhook events"""
     payload = request.data
-    sig_header = request.headers.get("stripe-signature", None)
-
+    sig_header = request.headers.get('Stripe-Signature')
+    
     if not sig_header:
-        app.logger.error("Missing Stripe signature header")
-        return jsonify(success=False), 400
-
+        logger.error('Missing Stripe signature header')
+        return jsonify({'error': 'Missing signature header'}), 400
+    
     try:
         event = stripe.Webhook.construct_event(
-            payload, sig_header, STRIPE_WEBHOOK_SECRET
+            payload,
+            sig_header,
+            os.getenv('STRIPE_WEBHOOK_SECRET')
         )
+    except ValueError as e:
+        logger.error(f'Invalid payload: {str(e)}')
+        return jsonify({'error': 'Invalid payload'}), 400
     except stripe.error.SignatureVerificationError as e:
-        app.logger.error(f"Webhook signature verification failed: {str(e)}")
-        return jsonify(success=False), 400
-    except Exception as e:
-        app.logger.error(f"Webhook error: {str(e)}")
-        return jsonify(success=False), 400
-
-    # Handle checkout.session.completed
-    if event["type"] == "checkout.session.completed":
-        session = event["data"]["object"]
-        customer_email = session.get("customer_email")
-
-        app.logger.info(f"Payment completed for email: {customer_email}")
-
-        # Call Google Sheets API to mark as paid
+        logger.error(f'Signature verification failed: {str(e)}')
+        return jsonify({'error': 'Invalid signature'}), 400
+    
+    # Handle specific event types
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        customer_email = session.get('customer_email')
+        
+        if not customer_email:
+            logger.error('No email in completed session')
+            return jsonify({'error': 'No customer email'}), 400
+        
         try:
-            params = {
-                "email": customer_email,
-                "status": "paid"
-            }
-            response = requests.get(GOOGLE_SHEET_API_URL, params=params, timeout=10)
+            # Update Google Sheet
+            response = requests.post(
+                os.getenv('GOOGLE_SHEET_API_URL'),
+                json={
+                    'email': customer_email,
+                    'status': 'paid',
+                    'payment_id': session.get('id'),
+                    'amount': session.get('amount_total', 500) / 100  # Convert cents to dollars
+                },
+                timeout=10
+            )
+            
             if response.status_code == 200:
-                app.logger.info(f"Marked {customer_email} as paid in Google Sheet")
+                logger.info(f'Updated payment status for {customer_email}')
             else:
-                app.logger.error(f"Failed to mark paid in Google Sheet: {response.status_code}, {response.text}")
-        except Exception as e:
-            app.logger.error(f"Error calling Google Sheet API: {str(e)}")
+                logger.error(f'Google Sheets update failed: {response.status_code}')
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f'Google Sheets API error: {str(e)}')
+    
+    return jsonify({'status': 'success'}), 200
 
-    return jsonify(success=True), 200
+# --- Service Functions ---
+def detect_style(image_b64):
+    """Use OpenAI to detect clothing style"""
+    client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+    
+    response = client.chat.completions.create(
+        model='gpt-4-vision-preview',
+        messages=[
+            {
+                'role': 'system',
+                'content': 'Classify the outfit style from the image. Respond with ONLY one of: south_asian, east_asian, western, middle_eastern, african, latin_american, north_american'
+            },
+            {
+                'role': 'user',
+                'content': [
+                    {'type': 'text', 'text': 'Classify this outfit:'},
+                    {'type': 'image_url', 'image_url': f'data:image/jpeg;base64,{image_b64}'}
+                ]
+            }
+        ],
+        max_tokens=50,
+        timeout=15  # seconds
+    )
+    
+    style = response.choices[0].message.content.strip().lower()
+    logger.info(f'Detected style: {style}')
+    return style
 
-# --- Run App ---
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port, threaded=True)
+# --- Main ---
+if __name__ == '__main__':
+    port = int(os.getenv('PORT', 10000))
+    app.run(host='0.0.0.0', port=port, threaded=True)
