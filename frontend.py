@@ -376,34 +376,6 @@ with tab1:
                 audio_bytes.seek(0)
                 st.audio(audio_bytes, format="audio/mp3")
 
-        # Leonardo AI Visualization Section
-        if hasattr(st.session_state, 'image_prompt') and st.session_state.image_prompt:
-            with st.expander("🖼️ Visualize Your Style (Leonardo AI Prompt)", expanded=True):
-                st.markdown("#### 📸 AI-Ready Prompt for Visual Generation")
-                st.code(st.session_state.image_prompt, language="markdown")
-
-                st.markdown("""
-                👉 **How to visualize your outfit:**
-                1. Copy the prompt above
-                2. Go to [Leonardo AI](https://app.leonardo.ai/)
-                3. Paste into their image generation tool
-                4. Upload the generated image below
-                """)
-
-                generated_img = st.file_uploader(
-                    "📤 Upload Generated Outfit Image (optional)", 
-                    type=["png", "jpg", "jpeg"],
-                    key="leonardo_image"
-                )
-                if generated_img:
-                    st.image(
-                        generated_img, 
-                        caption="🧠 AI-Styled Outfit", 
-                        use_column_width=True,
-                        output_format="auto"
-                    )
-                    st.success("✨ Outfit visualization complete! Now you can see how your style would look in real life.")
-
 # ---------- Tab 2: Travel Assistant ----------
 with tab2:
     st.header("✈️ Travel Fashion Assistant")
