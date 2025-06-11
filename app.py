@@ -78,40 +78,46 @@ def health_check():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    """Handle image uploads for style detection"""
+    """Handle image uploads for style detection and fashion suggestion"""
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
-    
+
     file = request.files['file']
-    
+
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
-    
+
     if not allowed_file(file.filename):
         return jsonify({'error': 'File type not allowed'}), 400
-    
+
     try:
         # Secure filename and save temporarily
         filename = secure_filename(file.filename)
         temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(temp_path)
-        
+
         # Process image
         with open(temp_path, 'rb') as img_file:
             image_b64 = base64.b64encode(img_file.read()).decode('utf-8')
-        
+
         # Clean up
         os.remove(temp_path)
-        
-        # Detect style (with timeout)
+
+        # Step 1: Detect style
         style = detect_style(image_b64)
-        
+
+        # Step 2: Generate fashion suggestion
+        fashion_description = generate_fashion_suggestion(image_b64, style)
+
+        # Return both
         return jsonify({
             'status': 'success',
             'style': style,
+            'fashion_suggestion': fashion_description,
+            'image_prompt': '',
             'processed_at': datetime.utcnow().isoformat()
         }), 200
-        
+
     except openai.APIError as e:
         logger.error(f'OpenAI API error: {str(e)}')
         return jsonify({
@@ -124,6 +130,7 @@ def upload_file():
             'error': 'Processing failed',
             'details': str(e)
         }), 500
+
 
 @app.route('/create-checkout-session', methods=['POST'])
 def create_checkout_session():
@@ -283,6 +290,33 @@ def detect_style(image_b64, max_retries=3):
             # For other unexpected errors
             logger.error(f'Unexpected error in detect_style: {str(e)}\n{traceback.format_exc()}')
             raise e
+
+def generate_fashion_suggestion(image_b64, style_label):
+    """Use OpenAI to generate full fashion suggestion based on image + style"""
+    client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+
+    response = client.chat.completions.create(
+        model='gpt-4o',
+        messages=[
+            {
+                'role': 'system',
+                'content': f'You are a world-class fashion stylist specializing in {style_label} fashion. You will analyze the image and generate a detailed fashion recommendation. Respond in Markdown format.'
+            },
+            {
+                'role': 'user',
+                'content': [
+                    { 'type': 'text', 'text': 'Give me a full fashion suggestion for this outfit. Include:\n- Theme Name\n- Vibe\n- Top\n- Bottom\n- Shoes\n- Accessories\n- Fit Hack\n- 2 styling tips' },
+                    { 'type': 'image_url', 'image_url': { 'url': f'data:image/jpeg;base64,{image_b64}' } }
+                ]
+            }
+        ],
+        max_tokens=800,
+        timeout=20
+    )
+
+    suggestion_text = response.choices[0].message.content.strip()
+    logger.info(f'Generated fashion suggestion.')
+    return suggestion_text
 
 
 @app.route('/check-premium', methods=['GET'])
