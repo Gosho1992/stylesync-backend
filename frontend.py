@@ -626,88 +626,168 @@ with tab4:
             "💎 Glow-Up Plan", 
             "🔍 Full Diagnostic"
         ])
-        
-        # --- Brutal Roast Tab ---
-        with tab_roast:
-            st.subheader("💋 Outfit Roast Me")
-            with st.expander("📸 Upload Your Outfit", expanded=True):
-                roast_img = st.file_uploader(
-                    "Upload that questionable outfit...",
-                    type=["jpg", "jpeg", "png"],
-                    key="roast_upload"
-                )
-                
-                if roast_img and st.button("🔥 Roast My Outfit"):
-                    with st.spinner("Gathering the fashion police..."):
-                        try:
-                            img = Image.open(roast_img)
-                            img_b64 = img_to_base64(img)
-                            
-                            ROAST_PROMPT = """You're a fashionista with *opinions*. Give a flirty, shady-but-loving roast..."""
-                            
-                            response = client.chat.completions.create(
-                                model="gpt-4o",
-                                messages=[
-                                    {"role": "system", "content": ROAST_PROMPT},
-                                    {
-                                        "role": "user", 
-                                        "content": [
-                                            {"type": "text", "text": "Roast this outfit"},
-                                            {"type": "image_url", "image_url": { "url": f"data:image/png;base64,{img_b64}" }}
-                                        ]
-                                    }
-                                ]
-                            )
-                            
-                            st.markdown(f"""
-                            <div style='
-                                background:#FFF0F5;
-                                padding:20px;
-                                border-radius:12px;
-                                border-left:5px solid #FF69B4;
-                            '>
-                                <h4 style='color:#FF1493;'>💅 Fashion Police Verdict</h4>
-                                {response.choices[0].message.content}
-                            </div>
-                            """, unsafe_allow_html=True)
-                            
-                        except Exception as e:
-                            st.error(f"Failed to generate roast: {str(e)}")
-        
-        # --- Glow-Up Plan Tab ---
-        with tab_glowup:
-            st.subheader("💎 Personal Stylist Review")
-            # ... [similar implementation as roast tab] ...
-        
+        # Your existing 3 sub-tabs
+tab_roast, tab_glowup, tab_diagnostic = st.tabs([
+    "🔥 Brutal Roast",
+    "💎 Glow-Up Plan",
+    "🔍 Full Diagnostic"
+])
 
-def img_to_base64(image):
-    buffered = BytesIO()
-    image.save(buffered, format="PNG")
-    return base64.b64encode(buffered.getvalue()).decode()
+# ---- Brutal Roast Tab ----
+with tab_roast:
+    st.subheader("💋 Outfit Roast Me")
 
-
-        # --- Full Diagnostic Tab ---#
-with tab_diagnostic:
-    st.subheader("🔍 Comprehensive Style Autopsy")
-
-    with st.expander("📸 Upload Your Outfit + Face", expanded=True):
-        diagnostic_img = st.file_uploader(
-            "Upload full-body photo with visible face", 
-            type=["jpg", "jpeg", "png"], 
-            key="diagnostic_upload", 
+    with st.expander("📸 Drop Your Look Here", expanded=True):
+        roast_img = st.file_uploader(
+            "Upload that questionable outfit... we won't judge (okay maybe a little)",
+            type=["jpg", "jpeg", "png"],
+            key="roast_upload",
             label_visibility="collapsed"
         )
 
-        # Optional country selection
+        if roast_img:
+            img = Image.open(roast_img)
+            st.image(img, caption="Oh honey...", use_container_width=True)
+
+            if st.button("🔥 Roast Me Like I'm Zendaya's Backup Dancer"):
+                with st.spinner("Glam squad is assembling the sass..."):
+                    try:
+                        img_b64 = img_to_base64(img)
+
+                        ROAST_PROMPT = """You're a fashionista with *opinions*. Give a flirty, shady-but-loving roast:
+
+1. **First Impression** (1 sassy sentence)  
+*"Oh you woke up and chose... this?"*  
+
+2. **3 Hot Takes** (emoji + roast)  
+🧥 *"That jacket's giving 'I raided my dad's closet'"*  
+👖 *"Those jeans? More like *why*nses"*  
+
+3. **Celebrity Shade** (playful comparison)  
+*"Kinda serving 'early 2000s Britney denim-on-denim realness... but make it Walmart"*  
+
+4. **Glow-Up Tip** (keep it spicy)  
+*"Add heels and a blazer, or just burn it and start over"*  
+
+5. **Final Rating** (scale of 1-10 with sass)  
+*"3/10 – The sidewalk outside Fashion Week would *side-eye* this"*  
+
+Rules: No body shaming, just outfit shaming!"""
+
+                        response = client.chat.completions.create(
+                            model="gpt-4o",
+                            messages=[
+                                {"role": "system", "content": ROAST_PROMPT},
+                                {
+                                    "role": "user",
+                                    "content": [
+                                        {"type": "text", "text": "Roast this look like we're on a girls' night out"},
+                                        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}}
+                                    ]
+                                }
+                            ],
+                            max_tokens=800
+                        )
+
+                        st.markdown(f"""
+                        <div style='
+                            background-color: #FFF0F5;
+                            padding: 1.5rem;
+                            border-radius: 12px;
+                            border-left: 5px solid #FF69B4;
+                            font-family: "Arial", sans-serif;
+                        '>
+                            <h4 style='color: #FF1493; margin-top:0;'>💅 Fashion Police Verdict</h4>
+                            {response.choices[0].message.content}
+                            <p style='font-size: 0.8em; margin-bottom:0;'><i>Disclaimer: We roast because we care 💋</i></p>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                    except Exception as e:
+                        st.error("🚨 Error: Couldn't handle the truth (or the server)")
+
+# ---- Glow-Up Plan Tab ----
+with tab_glowup:
+    st.subheader("💎 Personal Stylist's Honest Review")
+    with st.expander("📸 Upload Your Outfit", expanded=True):
+        glowup_img = st.file_uploader(
+            "Upload your outfit photo",
+            type=["jpg", "jpeg", "png"],
+            key="glowup_upload",
+            label_visibility="collapsed"
+        )
+
+        if glowup_img:
+            img = Image.open(glowup_img)
+            st.image(img, caption="Your current look", use_container_width=True)
+
+            if st.button("✨ Get Honest Stylist Feedback", type="primary"):
+                with st.spinner("Consulting with our fashion experts..."):
+                    try:
+                        img_b64 = img_to_base64(img)
+
+                        response = client.chat.completions.create(
+                            model="gpt-4o",
+                            messages=[
+                                {
+                                    "role": "system",
+                                    "content": """You're a celebrity stylist giving honest but kind feedback. Provide:
+1. First impression (1 sentence)
+2. Outfit rating (1-10) with brief explanation
+3. Top 3 strengths of this look
+4. Top 3 areas for improvement
+5. Simple styling tweaks that would elevate it
+6. Recommended accessories
+Use bullet points with emojis and keep it conversational."""
+                                },
+                                {
+                                    "role": "user",
+                                    "content": [
+                                        {"type": "text", "text": "Give me honest feedback on this outfit"},
+                                        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}}
+                                    ]
+                                }
+                            ],
+                            max_tokens=1000
+                        )
+
+                        st.markdown(f"""
+                            <div style='
+                                background-color: #f8f9fa;
+                                padding: 20px;
+                                border-radius: 10px;
+                                border-left: 5px solid #bb377d;
+                                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                            '>
+                                <h3 style='color: #bb377d; margin-top: 0;'>✨ Your Personal Stylist Report</h3>
+                                {response.choices[0].message.content}
+                                <p style='font-style: italic; margin-bottom: 0;'>Remember: Confidence is the best accessory!</p>
+                            </div>
+                        """, unsafe_allow_html=True)
+
+                    except Exception as e:
+                        st.error(f"❌ Couldn't get styling advice: {str(e)}")
+
+# ---- Full Diagnostic Tab ----
+with tab_diagnostic:
+    st.subheader("🔍 Comprehensive Style Autopsy")
+    with st.expander("📸 Upload Your Outfit + Face", expanded=True):
+        diagnostic_img = st.file_uploader(
+            "Upload full-body photo with visible face",
+            type=["jpg", "jpeg", "png"],
+            key="diagnostic_upload",
+            label_visibility="collapsed"
+        )
+
         country = st.selectbox(
-            "🌐 Select your country for localized store suggestions (optional)", 
+            "🌐 Select your country for localized store suggestions (optional)",
             options=["", "Pakistan", "Germany", "USA", "UK", "India", "Canada", "Australia"],
             index=0
         )
 
         if diagnostic_img:
             img = Image.open(diagnostic_img)
-            st.image(img, caption="Outfit to analyze", use_container_width=True)
+            st.image(img, caption="Outfit to analyze", use_column_width=True)
 
             if st.button("🧠 Run Full Diagnostic"):
                 with st.spinner("Analyzing 15+ style factors..."):
@@ -752,15 +832,6 @@ Avoid links and fake stores. Be practical, relevant, and region-aware.
                             max_tokens=1400
                         )
 
-                        analysis = response.choices[0].message.content
-
-                        # Split the output into analysis and store list
-                        if "📍" in analysis:
-                            style_report, store_section = analysis.split("📍", 1)
-                        else:
-                            style_report, store_section = analysis, ""
-
-                        st.subheader("📋 Your Head-to-Toe Style Report")
                         st.markdown(f"""
                         <div style='
                             background-color: #fafafa;
@@ -768,32 +839,15 @@ Avoid links and fake stores. Be practical, relevant, and region-aware.
                             border-radius: 15px;
                             border-left: 6px solid #6a5acd;
                         '>
-                            {style_report.strip()}
+                            {response.choices[0].message.content}
                         </div>
                         """, unsafe_allow_html=True)
-
-                        if store_section:
-                            st.subheader("🛍️ Suggested Stores for You")
-                            # Parse lines like: - Mango: Blazers and dresses ($60–120)
-                            for line in store_section.strip().split("\n"):
-                                if line.strip().startswith("-"):
-                                    parts = line.strip("-").split(":")
-                                    if len(parts) == 2:
-                                        store = parts[0].strip()
-                                        rest = parts[1].strip()
-                                        if "(" in rest and ")" in rest:
-                                            product = rest.split("(")[0].strip()
-                                            price = rest.split("(")[1].replace(")", "").strip()
-                                            render_style_card(store, product, price)
-
-                            st.markdown(
-                                "<p style='margin-top: 10px; font-style: italic;'>Tip: Browse these stores to explore styles similar to your recommendation.</p>",
-                                unsafe_allow_html=True
-                            )
 
                     except Exception as e:
                         st.error(f"❌ Analysis failed: {str(e)}")
                         st.info("Tip: Use a clear photo with your face and full outfit visible.")
+
+        
         
 
     # ========== PAYMENT FLOW (LOCKED) ==========
