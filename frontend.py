@@ -26,7 +26,7 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY")  # Do not hardcode key!
 
 STRIPE_PRICE_ID = "price_1RYNCkB1g7uD1vIapFF9HOwr"
 SUCCESS_URL = "https://gosho1992-stylesync-backend-frontend-0zlcqx.streamlit.app/"
-API_URL = "https://script.google.com/macros/s/AKfyc66NuoQyt8cI91wtVo6_9Fh2gyVSZJZsqk7GeL7n01K4qywyI2Q71_0mMLOKFRhlK7/exec"
+API_URL = "https://stylesync-backend-2kz6.onrender.com/check-premium"
 
 
 # ----- Helper Functions -----
@@ -578,9 +578,25 @@ with tab4:
                 
                 if response.status_code == 200:
                     user_data = response.json()
+
+                    # DEBUG PRINTS
+                    st.write("DEBUG: user_data from API →", user_data)
+                    st.write("DEBUG: email entered →", email.strip().lower())
+
                     if isinstance(user_data, list):
                         user_record = next(
-                            (u for u in user_data if u.get("email", "").strip().lower() == email.strip().lower()),
+                            (
+                                u for u in user_data
+                                if u.get("email", "")
+                                    .strip()
+                                    .lower()
+                                    .replace('\u00a0', '')  # non-breaking space
+                                    .replace(' ', '')       # remove spaces
+                                ==
+                                email.strip().lower()
+                                    .replace('\u00a0', '')
+                                    .replace(' ', '')
+                            ),
                             None
                         )
                     else:
@@ -610,6 +626,7 @@ with tab4:
         💎 **Premium Features Unlocked!**  
         Enjoy your enhanced fashion experience.
         """)
+
         
         # Create tabs for premium features
         tab_roast, tab_glowup, tab_diagnostic = st.tabs([
