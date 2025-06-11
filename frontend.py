@@ -776,7 +776,7 @@ Use bullet points with emojis and keep it conversational."""
 
                 if diagnostic_img:
                     img = Image.open(diagnostic_img)
-                    st.image(img, caption="Outfit to analyze", use_column_width=True)
+                    st.image(img, caption="Outfit to analyze", use_container_width=True)
 
                     if st.button("🧠 Run Full Diagnostic"):
                         with st.spinner("Analyzing 15+ style factors..."):
