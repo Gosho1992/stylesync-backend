@@ -633,7 +633,7 @@ with tab4:
                                         "role": "user", 
                                         "content": [
                                             {"type": "text", "text": "Roast this outfit"},
-                                            {"type": "image_url", "image_url": f"data:image/png;base64,{img_b64}"}
+                                            {"type": "image_url", "image_url": { "url": f"data:image/png;base64,{img_b64}" }}
                                         ]
                                     }
                                 ]
