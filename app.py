@@ -235,32 +235,55 @@ def stripe_webhook():
     return jsonify({'status': 'success'}), 200
 
 # --- Service Functions ---
-def detect_style(image_b64):
-    """Use OpenAI to detect clothing style"""
+import time
+
+def detect_style(image_b64, max_retries=3):
+    """Use OpenAI to detect clothing style with retries"""
     client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-    
-    response = client.chat.completions.create(
-        model='gpt-4o',
-        messages=[
-            {
-                'role': 'system',
-                'content': 'Classify the outfit style from the image. Respond with ONLY one of: south_asian, east_asian, western, middle_eastern, african, latin_american, north_american'
-            },
-            {
-                'role': 'user',
-                'content': [
-                    {'type': 'text', 'text': 'Classify this outfit:'},
-                    {'type': 'image_url', 'image_url': f'data:image/jpeg;base64,{image_b64}'}
-                ]
-            }
-        ],
-        max_tokens=50,
-        timeout=15  # seconds
-    )
-    
-    style = response.choices[0].message.content.strip().lower()
-    logger.info(f'Detected style: {style}')
-    return style
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = client.chat.completions.create(
+                model='gpt-4o',
+                messages=[
+                    {
+                        'role': 'system',
+                        'content': 'Classify the outfit style from the image. Respond with ONLY one of: south_asian, east_asian, western, middle_eastern, african, latin_american, north_american'
+                    },
+                    {
+                        'role': 'user',
+                        'content': [
+                            { 'type': 'text', 'text': 'Classify this outfit:' },
+                            { 'type': 'image_url', 'image_url': { 'url': f'data:image/jpeg;base64,{image_b64}' } }
+                        ]
+                    }
+                ],
+                max_tokens=50,
+                timeout=15
+            )
+
+            style = response.choices[0].message.content.strip().lower()
+            logger.info(f'Detected style: {style}')
+            return style
+
+        except openai.APIError as e:
+            logger.warning(f'OpenAI APIError on attempt {attempt}/{max_retries}: {str(e)}')
+
+            # If not last attempt, wait and retry
+            if attempt < max_retries:
+                wait_time = 2 * attempt  # exponential backoff
+                logger.info(f'Waiting {wait_time} seconds before retrying...')
+                time.sleep(wait_time)
+            else:
+                # Last attempt failed — raise to caller (will trigger your 503 logic)
+                logger.error('All OpenAI API attempts failed.')
+                raise e
+
+        except Exception as e:
+            # For other unexpected errors
+            logger.error(f'Unexpected error in detect_style: {str(e)}\n{traceback.format_exc()}')
+            raise e
+
 
 @app.route('/check-premium', methods=['GET'])
 def check_premium():
