@@ -15,6 +15,7 @@ import os
 from streamlit.components.v1 import html
 import stripe
 import requests
+from io import BytesIO
 
 # Initialize environment first
 load_dotenv()
@@ -30,6 +31,25 @@ API_URL = "https://stylesync-backend-2kz6.onrender.com/check-premium"
 
 
 # ----- Helper Functions -----
+
+
+def render_style_card(store_name, product_type, price_range):
+    st.markdown(f"""
+    <div style='
+        background-color: #ffffff;
+        padding: 16px;
+        border: 1px solid #ddd;
+        border-radius: 12px;
+        margin-bottom: 10px;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
+    '>
+        <h4 style='margin-bottom: 6px;'>{store_name}</h4>
+        <p style='margin: 0'><strong>Product:</strong> {product_type}</p>
+        <p style='margin: 0'><strong>Price:</strong> {price_range}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+
 def img_to_base64(img):
     buffered = io.BytesIO()
     img.save(buffered, format="PNG")
@@ -659,10 +679,121 @@ with tab4:
             st.subheader("💎 Personal Stylist Review")
             # ... [similar implementation as roast tab] ...
         
+
+def img_to_base64(image):
+    buffered = BytesIO()
+    image.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode()
+
+
         # --- Full Diagnostic Tab ---
         with tab_diagnostic:
-            st.subheader("🔍 Comprehensive Style Analysis")
-            # ... [similar implementation] ...
+    st.subheader("🔍 Comprehensive Style Autopsy")
+
+    with st.expander("📸 Upload Your Outfit + Face", expanded=True):
+        diagnostic_img = st.file_uploader(
+            "Upload full-body photo with visible face", 
+            type=["jpg", "jpeg", "png"], 
+            key="diagnostic_upload", 
+            label_visibility="collapsed"
+        )
+
+        # Optional country selection
+        country = st.selectbox(
+            "🌐 Select your country for localized store suggestions (optional)", 
+            options=["", "Pakistan", "Germany", "USA", "UK", "India", "Canada", "Australia"],
+            index=0
+        )
+
+        if diagnostic_img:
+            img = Image.open(diagnostic_img)
+            st.image(img, caption="Outfit to analyze", use_container_width=True)
+
+            if st.button("🧠 Run Full Diagnostic"):
+                with st.spinner("Analyzing 15+ style factors..."):
+                    try:
+                        img_b64 = img_to_base64(img)
+                        user_region = country if country else "globally available"
+
+                        SYSTEM_PROMPT = f"""
+You're a celebrity stylist giving a HEAD-TO-TOE analysis. Cover:
+
+**A. FACE & HAIR SYNERGY**
+1. Face Shape: Suggest flattering necklines/hairstyles
+2. Skin Tone: Recommend clothing colors for undertone
+3. Hair Texture: Offer styling advice
+
+**B. OUTFIT ANALYSIS**
+1. Occasion: Day/Night appropriateness
+2. Seasonality: Fabric and color match to weather
+3. Trend Alignment: Does this outfit match current fashion trends? Briefly explain.
+
+**C. SHOPPING SUGGESTIONS (For {user_region})**
+List 3–5 realistic stores that users in {user_region} can visit or browse to find the recommended styles.
+
+Return this section like a clean list:
+- Store Name: Product Type (Price Range)
+
+Avoid links and fake stores. Be practical, relevant, and region-aware.
+"""
+
+                        response = client.chat.completions.create(
+                            model="gpt-4o",
+                            messages=[
+                                {"role": "system", "content": SYSTEM_PROMPT},
+                                {
+                                    "role": "user",
+                                    "content": [
+                                        {"type": "text", "text": "Analyze this look head-to-toe."},
+                                        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}}
+                                    ]
+                                }
+                            ],
+                            max_tokens=1400
+                        )
+
+                        analysis = response.choices[0].message.content
+
+                        # Split the output into analysis and store list
+                        if "📍" in analysis:
+                            style_report, store_section = analysis.split("📍", 1)
+                        else:
+                            style_report, store_section = analysis, ""
+
+                        st.subheader("📋 Your Head-to-Toe Style Report")
+                        st.markdown(f"""
+                        <div style='
+                            background-color: #fafafa;
+                            padding: 25px;
+                            border-radius: 15px;
+                            border-left: 6px solid #6a5acd;
+                        '>
+                            {style_report.strip()}
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                        if store_section:
+                            st.subheader("🛍️ Suggested Stores for You")
+                            # Parse lines like: - Mango: Blazers and dresses ($60–120)
+                            for line in store_section.strip().split("\n"):
+                                if line.strip().startswith("-"):
+                                    parts = line.strip("-").split(":")
+                                    if len(parts) == 2:
+                                        store = parts[0].strip()
+                                        rest = parts[1].strip()
+                                        if "(" in rest and ")" in rest:
+                                            product = rest.split("(")[0].strip()
+                                            price = rest.split("(")[1].replace(")", "").strip()
+                                            render_style_card(store, product, price)
+
+                            st.markdown(
+                                "<p style='margin-top: 10px; font-style: italic;'>Tip: Browse these stores to explore styles similar to your recommendation.</p>",
+                                unsafe_allow_html=True
+                            )
+
+                    except Exception as e:
+                        st.error(f"❌ Analysis failed: {str(e)}")
+                        st.info("Tip: Use a clear photo with your face and full outfit visible.")
 
     # ========== PAYMENT FLOW (LOCKED) ==========
     else:
