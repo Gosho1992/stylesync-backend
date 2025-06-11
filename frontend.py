@@ -686,8 +686,8 @@ def img_to_base64(image):
     return base64.b64encode(buffered.getvalue()).decode()
 
 
-        # --- Full Diagnostic Tab ---
-        with tab_diagnostic:
+        # --- Full Diagnostic Tab ---#
+with tab_diagnostic:
     st.subheader("🔍 Comprehensive Style Autopsy")
 
     with st.expander("📸 Upload Your Outfit + Face", expanded=True):
@@ -794,6 +794,7 @@ Avoid links and fake stores. Be practical, relevant, and region-aware.
                     except Exception as e:
                         st.error(f"❌ Analysis failed: {str(e)}")
                         st.info("Tip: Use a clear photo with your face and full outfit visible.")
+        
 
     # ========== PAYMENT FLOW (LOCKED) ==========
     else:
