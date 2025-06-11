@@ -262,6 +262,33 @@ def detect_style(image_b64):
     logger.info(f'Detected style: {style}')
     return style
 
+@app.route('/check-premium', methods=['GET'])
+def check_premium():
+    """Proxy GET request to Google Sheet API to check premium status"""
+    email = request.args.get('email', '').strip().lower()
+    
+    if not email:
+        return jsonify({'error': 'Missing email parameter'}), 400
+    
+    try:
+        response = requests.get(
+            os.getenv('GOOGLE_SHEET_API_URL'),
+            params={'email': email},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            logger.info(f'Checked premium status for {email}')
+            return jsonify(response.json()), 200
+        else:
+            logger.error(f'Failed to check premium status: {response.status_code}')
+            return jsonify({'error': 'Failed to check premium status'}), response.status_code
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f'Error checking premium status: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+
 # --- Main ---
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 10000))
